@@ -67,11 +67,10 @@ O Render usa:
 
 ```bash
 bash build.sh
-python manage.py migrate --no-input
 gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
 ```
 
-O build instala dependencias e coleta estaticos. O pre-deploy executa migrations antes de iniciar a nova versao.
+O build instala dependencias, coleta estaticos e executa migrations. Essa abordagem e compativel com o plano gratuito do Render, que nao aceita `preDeployCommand`.
 
 ## Criar admin em producao
 
