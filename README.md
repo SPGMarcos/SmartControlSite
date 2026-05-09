@@ -2,7 +2,7 @@
 
 Plataforma fullstack para criação, venda, assinatura e gerenciamento de sites profissionais.
 
----
+
 
 ## 📌 Visão Geral
 
@@ -19,7 +19,7 @@ A proposta é permitir que clientes tenham:
 
 Tudo isso em uma plataforma moderna, segura e escalável.
 
----
+
 
 # 🎯 Objetivo
 
@@ -32,7 +32,7 @@ Criar uma plataforma SaaS que seja:
 - Automatizada
 - Preparada para múltiplos clientes
 
----
+
 
 # 🌐 O que a plataforma faz
 
@@ -66,7 +66,7 @@ A plataforma permite:
 - Gestão de planos
 - Administração centralizada
 
----
+
 
 # 🧠 Como funciona
 
@@ -82,7 +82,7 @@ A API gerencia:
 
 O PostgreSQL armazena todas as informações da plataforma.
 
----
+
 
 # ⚙️ Arquitetura
 
@@ -100,7 +100,7 @@ PostgreSQL
 Stripe
 ```
 
----
+
 
 # 💻 Tecnologias utilizadas
 
@@ -131,7 +131,7 @@ Stripe
 - JWT
 - Refresh Token Rotativo
 
----
+
 
 # 🔐 Segurança implementada
 
@@ -162,7 +162,7 @@ Stripe
 - Webhook Stripe validado
 - Secrets via variáveis de ambiente
 
----
+
 
 # 📂 Estrutura do projeto
 
@@ -174,7 +174,7 @@ SmartControlSite/
 └── docs/         → Arquitetura e documentação
 ```
 
----
+
 
 # 🚀 Rodando em desenvolvimento
 
@@ -184,7 +184,7 @@ SmartControlSite/
 git clone
 ```
 
----
+
 
 ## Configurar variáveis de ambiente
 
@@ -194,7 +194,7 @@ cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 ```
 
----
+
 
 ## Subir PostgreSQL
 
@@ -202,7 +202,7 @@ cp frontend/.env.example frontend/.env
 docker compose up -d postgres
 ```
 
----
+
 
 ## Backend
 
@@ -224,7 +224,7 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
----
+
 
 ## Frontend
 
@@ -236,7 +236,7 @@ npm install
 npm run dev
 ```
 
----
+
 
 # 🔄 Fluxo da plataforma
 
@@ -256,7 +256,7 @@ Stripe processa pagamentos
 Sistema libera funcionalidades
 ```
 
----
+
 
 # 🛡️ Confiabilidade
 
@@ -267,7 +267,7 @@ Sistema libera funcionalidades
 ✅ Backend desacoplado  
 ✅ Preparado para múltiplos clientes  
 
----
+
 
 # ⚠️ Limitações atuais
 
@@ -275,7 +275,7 @@ Sistema libera funcionalidades
 - Algumas áreas administrativas continuam em desenvolvimento
 - Plataforma ainda está recebendo melhorias visuais
 
----
+
 
 # 📈 Próximos passos
 
@@ -288,7 +288,7 @@ Sistema libera funcionalidades
 - Analytics avançado
 - Multi-tenant completo
 
----
+
 
 # 🌍 Aplicações
 
@@ -300,7 +300,7 @@ Sistema libera funcionalidades
 - Gestão de clientes
 - Assinaturas recorrentes
 
----
+
 
 # 🔗 Projeto
 
@@ -308,12 +308,13 @@ Sistema libera funcionalidades
 
 https://spgmarcos.github.io/SmartControlSite/
 
----
 
-# 👨‍💻 Autor
+
+# 👨‍💻 Autores
+
+## Ryan Maximiano
 
 ## Marcos Gabriel Ferreira Miranda
-## Ryan Maximiano
 
 Desenvolvedor Fullstack | IoT | Automação
 
