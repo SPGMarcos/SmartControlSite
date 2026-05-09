@@ -6,8 +6,11 @@ import {
   Code2,
   CreditCard,
   Gauge,
+  LifeBuoy,
   LockKeyhole,
   MessagesSquare,
+  RefreshCw,
+  ServerCog,
   ShieldCheck,
   Store
 } from "lucide-react";
@@ -22,15 +25,39 @@ const services = [
 ];
 
 const portfolio = [
-  { title: "Clinica premium", type: "Landing", status: "Publicado" },
+  { title: "Horizon Digital", type: "Landing", status: "Publicado" },
   { title: "Ecommerce local", type: "Loja", status: "Crescimento" },
   { title: "Portal de servicos", type: "Sistema", status: "Operacao" }
 ];
 
 const plans = [
-  { name: "Start", price: "R$ 799", monthly: "R$ 99/mes", items: ["Landing page", "Hospedagem assistida", "Painel do cliente"] },
-  { name: "Business", price: "R$ 1.990", monthly: "R$ 249/mes", items: ["Site completo", "SEO tecnico", "Suporte mensal"] },
-  { name: "Scale", price: "Sob medida", monthly: "Contrato", items: ["Sistema web", "Integracoes", "SLA prioritario"] }
+  {
+    name: "Start",
+    price: "R$ 799",
+    monthly: "R$ 99/mes",
+    monthlyTitle: "Assinatura opcional de suporte",
+    monthlyText: "Hospedagem, manutencao, seguranca e pequenos ajustes mensais.",
+    icon: LifeBuoy,
+    items: ["Landing page", "Hospedagem assistida", "Painel do cliente"]
+  },
+  {
+    name: "Business",
+    price: "R$ 1.990",
+    monthly: "R$ 249/mes",
+    monthlyTitle: "Operacao recorrente",
+    monthlyText: "Suporte, atualizacoes, melhorias de performance e acompanhamento.",
+    icon: ServerCog,
+    items: ["Site completo", "SEO tecnico", "Suporte mensal"]
+  },
+  {
+    name: "Scale",
+    price: "Sob medida",
+    monthly: "Contrato recorrente",
+    monthlyTitle: "SLA e evolucao continua",
+    monthlyText: "Roadmap, automacoes, integracoes e suporte prioritario.",
+    icon: RefreshCw,
+    items: ["Sistema web", "Integracoes", "SLA prioritario"]
+  }
 ];
 
 export default function LandingPage() {
@@ -38,7 +65,7 @@ export default function LandingPage() {
     <div className="site-page">
       <PublicHeader />
 
-      <section className="hero">
+      <section className="hero" data-reveal>
         <div className="hero-scene" aria-hidden="true">
           <div className="scene-topbar" />
           <div className="scene-panel scene-panel-main">
@@ -98,14 +125,14 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="section" id="servicos">
+      <section className="section" id="servicos" data-reveal>
         <div className="section-heading">
           <span>Servicos</span>
           <h2>Da primeira pagina ao sistema completo.</h2>
         </div>
         <div className="service-grid">
           {services.map((service) => (
-            <article className="card" key={service.title}>
+            <article className="card interactive-card" key={service.title} data-reveal>
               <service.icon size={24} />
               <h3>{service.title}</h3>
               <p>{service.text}</p>
@@ -114,14 +141,14 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="section muted" id="portfolio">
+      <section className="section muted" id="portfolio" data-reveal>
         <div className="section-heading">
           <span>Portfolio</span>
           <h2>Projetos com visual limpo, performance e manutencao.</h2>
         </div>
         <div className="portfolio-grid">
           {portfolio.map((item, index) => (
-            <article className="portfolio-item" key={item.title}>
+            <article className="portfolio-item interactive-card" key={item.title} data-reveal>
               <div className={`portfolio-preview preview-${index + 1}`}>
                 <span />
                 <strong />
@@ -138,17 +165,29 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="section" id="planos">
+      <section className="section" id="planos" data-reveal>
         <div className="section-heading">
           <span>Planos</span>
           <h2>Pagamento unico pelo projeto e assinatura para continuidade.</h2>
         </div>
         <div className="plans-grid">
           {plans.map((plan) => (
-            <article className="plan-card" key={plan.name}>
+            <article className="plan-card interactive-card" key={plan.name} data-reveal>
               <h3>{plan.name}</h3>
-              <strong>{plan.price}</strong>
-              <span>{plan.monthly}</span>
+              <div className="plan-price">
+                <span>Projeto unico</span>
+                <strong>{plan.price}</strong>
+              </div>
+              <div className="monthly-note">
+                <span className="monthly-icon">
+                  <plan.icon size={18} />
+                </span>
+                <div>
+                  <span>{plan.monthlyTitle}</span>
+                  <strong>{plan.monthly}</strong>
+                  <small>{plan.monthlyText}</small>
+                </div>
+              </div>
               <ul>
                 {plan.items.map((item) => (
                   <li key={item}>
@@ -165,14 +204,14 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="section muted" id="processo">
+      <section className="section muted" id="processo" data-reveal>
         <div className="section-heading">
           <span>Como funciona</span>
           <h2>Um fluxo simples para vender, produzir e manter.</h2>
         </div>
         <div className="timeline">
           {["Briefing", "Proposta", "Desenvolvimento", "Publicacao", "Suporte mensal"].map((step, index) => (
-            <article key={step}>
+            <article key={step} data-reveal>
               <span>{index + 1}</span>
               <h3>{step}</h3>
             </article>
@@ -180,10 +219,10 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="final-cta">
+      <section className="final-cta" data-reveal>
         <BadgeCheck size={28} />
-        <h2>Pronto para vender sites com operacao profissional?</h2>
-        <p>Centralize clientes, projetos, cobrancas e solicitacoes em uma plataforma feita para crescer.</p>
+        <h2>Transforme sua presenca digital em uma operacao inteligente de vendas.</h2>
+        <p>Sites, automacoes e gestao profissional para empresas que querem crescer com tecnologia, performance e confianca.</p>
         <Link className="primary-button large" to="/register">
           Criar conta
           <MessagesSquare size={20} />

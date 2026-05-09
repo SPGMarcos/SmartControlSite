@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 
 import { useAuth } from "../hooks/useAuth.js";
 import Logo from "./Logo.jsx";
+import ThemeToggle from "./ThemeToggle.jsx";
 
 export default function AppShell({ children }) {
   const { user, isAdmin, logout } = useAuth();
@@ -10,7 +11,10 @@ export default function AppShell({ children }) {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <Logo to="/dashboard" />
+        <div className="sidebar-top">
+          <Logo to="/dashboard" />
+          <ThemeToggle compact />
+        </div>
         <nav className="side-nav" aria-label="Aplicacao">
           <NavLink to="/dashboard">
             <LayoutDashboard size={18} />

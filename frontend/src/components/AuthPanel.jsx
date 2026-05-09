@@ -1,10 +1,14 @@
 import Logo from "./Logo.jsx";
+import ThemeToggle from "./ThemeToggle.jsx";
 
 export default function AuthPanel({ title, subtitle, children }) {
   return (
     <main className="auth-page">
       <section className="auth-panel">
-        <Logo />
+        <div className="auth-topbar">
+          <Logo />
+          <ThemeToggle compact />
+        </div>
         <div className="auth-copy">
           <h1>{title}</h1>
           <p>{subtitle}</p>

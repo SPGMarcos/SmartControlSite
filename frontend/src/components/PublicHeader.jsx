@@ -2,6 +2,7 @@ import { ArrowRight, LogIn } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import Logo from "./Logo.jsx";
+import ThemeToggle from "./ThemeToggle.jsx";
 
 export default function PublicHeader() {
   return (
@@ -14,6 +15,7 @@ export default function PublicHeader() {
         <a href="#processo">Processo</a>
       </nav>
       <div className="header-actions">
+        <ThemeToggle compact />
         <Link className="ghost-button" to="/login">
           <LogIn size={18} />
           Entrar
