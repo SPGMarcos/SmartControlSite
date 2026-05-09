@@ -22,10 +22,15 @@ Se o Render mudar o subdominio do backend, atualize:
 
 O workflow esta em `.github/workflows/frontend-pages.yml`.
 
+Tambem existe uma copia estatica do build na raiz do repositorio e em `docs/`. Isso evita 404 quando o GitHub Pages estiver configurado no modo classico `Deploy from a branch`.
+
 Passos no GitHub:
 
 1. Va em `Settings > Pages`.
-2. Em `Build and deployment`, selecione `GitHub Actions`.
+2. Use uma destas opcoes:
+   - `Deploy from a branch` com `main` e `/root`.
+   - `Deploy from a branch` com `main` e `/docs`.
+   - `GitHub Actions`, usando o workflow ja incluido.
 3. Opcional: em `Settings > Secrets and variables > Actions > Variables`, crie:
 
 ```text
