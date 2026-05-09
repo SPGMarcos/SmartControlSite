@@ -2,8 +2,12 @@ from datetime import timedelta
 import os
 from pathlib import Path
 
+import dj_database_url
+from dotenv import load_dotenv
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env")
 
 
 def env(name, default=None, cast=str):
@@ -22,6 +26,9 @@ def env(name, default=None, cast=str):
 SECRET_KEY = env("DJANGO_SECRET_KEY", "unsafe-dev-key-change-me")
 DEBUG = env("DJANGO_DEBUG", False, bool)
 ALLOWED_HOSTS = env("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1", list)
+RENDER_EXTERNAL_HOSTNAME = env("RENDER_EXTERNAL_HOSTNAME", "")
+if RENDER_EXTERNAL_HOSTNAME and RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
 
 
 INSTALLED_APPS = [
@@ -45,6 +52,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "csp.middleware.CSPMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -76,17 +84,19 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
+DEFAULT_DATABASE_URL = (
+    f"postgresql://{env('POSTGRES_USER', 'smartcontrol')}:"
+    f"{env('POSTGRES_PASSWORD', 'smartcontrol_dev_password')}@"
+    f"{env('POSTGRES_HOST', 'localhost')}:"
+    f"{env('POSTGRES_PORT', '5432')}/"
+    f"{env('POSTGRES_DB', 'smartcontrol_sites')}"
+)
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": env("POSTGRES_DB", "smartcontrol_sites"),
-        "USER": env("POSTGRES_USER", "smartcontrol"),
-        "PASSWORD": env("POSTGRES_PASSWORD", "smartcontrol_dev_password"),
-        "HOST": env("POSTGRES_HOST", "localhost"),
-        "PORT": env("POSTGRES_PORT", "5432"),
-        "CONN_MAX_AGE": 60,
-        "OPTIONS": {"sslmode": env("POSTGRES_SSLMODE", "prefer")},
-    }
+    "default": dj_database_url.config(
+        default=env("DATABASE_URL", DEFAULT_DATABASE_URL),
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
 
 AUTH_USER_MODEL = "users.User"
@@ -111,7 +121,17 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"
+        if DEBUG
+        else "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    },
+}
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -154,6 +174,7 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = env("DJANGO_CSRF_TRUSTED_ORIGINS", "http://localhost:5173", list)
 
 SECURE_SSL_REDIRECT = env("SECURE_SSL_REDIRECT", False, bool)
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_HSTS_SECONDS = 0 if DEBUG else env("SECURE_HSTS_SECONDS", 31536000, int)
 SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
 SECURE_HSTS_PRELOAD = not DEBUG
@@ -162,23 +183,26 @@ SECURE_REFERRER_POLICY = "same-origin"
 X_FRAME_OPTIONS = "DENY"
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
-SESSION_COOKIE_SAMESITE = "Lax"
-CSRF_COOKIE_SAMESITE = "Lax"
+COOKIE_SAMESITE = env("COOKIE_SAMESITE", "Lax" if DEBUG else "None")
+SESSION_COOKIE_SAMESITE = COOKIE_SAMESITE
+CSRF_COOKIE_SAMESITE = COOKIE_SAMESITE
 
 FRONTEND_URL = env("FRONTEND_URL", "http://localhost:5173")
+FRONTEND_ORIGIN = env("FRONTEND_ORIGIN", FRONTEND_URL)
 STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET", "")
 STRIPE_SUCCESS_URL = env("STRIPE_SUCCESS_URL", f"{FRONTEND_URL}/dashboard?checkout=success")
 STRIPE_CANCEL_URL = env("STRIPE_CANCEL_URL", f"{FRONTEND_URL}/dashboard?checkout=cancel")
 JWT_REFRESH_COOKIE_NAME = env("JWT_REFRESH_COOKIE_NAME", "sc_refresh")
 JWT_REFRESH_COOKIE_MAX_AGE = 7 * 24 * 60 * 60
+JWT_REFRESH_COOKIE_SAMESITE = env("JWT_REFRESH_COOKIE_SAMESITE", COOKIE_SAMESITE)
 
 CSP_DEFAULT_SRC = ("'self'",)
 CSP_SCRIPT_SRC = ("'self'", "https://js.stripe.com")
 CSP_STYLE_SRC = ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com")
 CSP_FONT_SRC = ("'self'", "https://fonts.gstatic.com")
 CSP_IMG_SRC = ("'self'", "data:", "https:")
-CSP_CONNECT_SRC = ("'self'", FRONTEND_URL, "https://api.stripe.com")
+CSP_CONNECT_SRC = ("'self'", FRONTEND_ORIGIN, "https://api.stripe.com")
 CSP_FRAME_SRC = ("'self'", "https://js.stripe.com", "https://hooks.stripe.com")
 CSP_BASE_URI = ("'self'",)
 CSP_FORM_ACTION = ("'self'",)

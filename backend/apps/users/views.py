@@ -28,13 +28,18 @@ def set_refresh_cookie(response, refresh_token):
         max_age=settings.JWT_REFRESH_COOKIE_MAX_AGE,
         httponly=True,
         secure=not settings.DEBUG,
-        samesite="Lax",
+        samesite=settings.JWT_REFRESH_COOKIE_SAMESITE,
         path="/api/auth/",
     )
 
 
 def clear_refresh_cookie(response):
-    response.delete_cookie(settings.JWT_REFRESH_COOKIE_NAME, path="/api/auth/", samesite="Lax")
+    response.delete_cookie(
+        settings.JWT_REFRESH_COOKIE_NAME,
+        path="/api/auth/",
+        secure=not settings.DEBUG,
+        samesite=settings.JWT_REFRESH_COOKIE_SAMESITE,
+    )
 
 
 class RegisterView(GenericAPIView):

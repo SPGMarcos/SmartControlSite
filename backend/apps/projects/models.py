@@ -33,6 +33,7 @@ class Project(TimeStampedModel):
     due_date = models.DateField(null=True, blank=True)
 
     class Meta:
+        db_table = "projects"
         indexes = [
             models.Index(fields=["client"]),
             models.Index(fields=["status"]),

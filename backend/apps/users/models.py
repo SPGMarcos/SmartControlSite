@@ -44,6 +44,7 @@ class User(AbstractUser, TimeStampedModel):
     objects = UserManager()
 
     class Meta:
+        db_table = "users"
         indexes = [
             models.Index(fields=["role"]),
             models.Index(fields=["is_active"]),
@@ -63,6 +64,7 @@ class AuthLog(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        db_table = "auth_logs"
         indexes = [
             models.Index(fields=["email"]),
             models.Index(fields=["event"]),

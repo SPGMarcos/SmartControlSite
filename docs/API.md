@@ -2,6 +2,12 @@
 
 Base URL local: `http://localhost:8000/api`
 
+## Health
+
+| Metodo | Endpoint | Acesso | Descricao |
+| --- | --- | --- | --- |
+| GET | `/health/` | Publico | Health check para Render |
+
 ## Auth
 
 | Metodo | Endpoint | Acesso | Descricao |

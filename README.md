@@ -25,6 +25,7 @@ SmartControlSite/
 - [Modelo SQL](docs/DATABASE.sql)
 - [Endpoints](docs/API.md)
 - [Estrutura de pastas](docs/STRUCTURE.md)
+- [Deploy GitHub + Render](docs/DEPLOY.md)
 
 ## Rodando em desenvolvimento
 

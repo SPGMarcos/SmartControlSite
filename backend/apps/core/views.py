@@ -10,3 +10,9 @@ from rest_framework.response import Response
 @permission_classes([AllowAny])
 def csrf(request):
     return Response({"csrfToken": get_token(request)})
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def health(request):
+    return Response({"status": "ok"})

@@ -18,6 +18,7 @@ class Client(TimeStampedModel):
     stripe_customer_id = models.CharField(max_length=128, unique=True, null=True, blank=True)
 
     class Meta:
+        db_table = "clients"
         indexes = [
             models.Index(fields=["status"]),
             models.Index(fields=["company_name"]),

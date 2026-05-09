@@ -51,7 +51,11 @@ SmartControlSite/
     ARCHITECTURE.md
     API.md
     DATABASE.sql
+    DEPLOY.md
     STRUCTURE.md
+  .github/workflows/
+    frontend-pages.yml
+  render.yaml
 ```
 
 ## Responsabilidades

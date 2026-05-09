@@ -16,6 +16,7 @@ class Plan(TimeStampedModel):
     stripe_monthly_price_id = models.CharField(max_length=128, blank=True)
 
     class Meta:
+        db_table = "plans"
         indexes = [models.Index(fields=["is_active"])]
         ordering = ["setup_price", "monthly_price"]
 
@@ -41,6 +42,7 @@ class Subscription(TimeStampedModel):
     cancel_at_period_end = models.BooleanField(default=False)
 
     class Meta:
+        db_table = "subscriptions"
         indexes = [
             models.Index(fields=["client"]),
             models.Index(fields=["status"]),
@@ -75,6 +77,7 @@ class Payment(TimeStampedModel):
     paid_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
+        db_table = "payments"
         indexes = [
             models.Index(fields=["client"]),
             models.Index(fields=["status"]),
