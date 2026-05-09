@@ -2,6 +2,7 @@
 
 Plataforma fullstack para criação, venda, assinatura e gerenciamento de sites profissionais.
 
+<img width="1916" height="871" alt="image" src="https://github.com/user-attachments/assets/3c982c92-c99c-4327-9b13-972877f5e9e9" />
 
 
 ## 📌 Visão Geral
