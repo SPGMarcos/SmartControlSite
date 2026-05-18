@@ -19,18 +19,20 @@ services:
         generateValue: true
       - key: DATABASE_URL
         fromDatabase:
-          name: smartcontrol-sites-db
+          name: dpg-d85ne3li849s7383pqvg-a
           property: connectionString
       - key: DJANGO_ALLOWED_HOSTS
         value: smartcontrol-sites-api.onrender.com
+      - key: RENDER_EXTERNAL_HOSTNAME
+        value: smartcontrolsite.onrender.com
       - key: DJANGO_CORS_ALLOWED_ORIGINS
-        value: https://spgmarcos.github.io
+        value: https://smartcontrolsite.onrender.com
       - key: DJANGO_CSRF_TRUSTED_ORIGINS
-        value: https://spgmarcos.github.io
+        value: https://smartcontrolsite.onrender.com
       - key: FRONTEND_URL
-        value: https://spgmarcos.github.io/SmartControlSite
+        value: https://smartcontrolsite.onrender.com
       - key: FRONTEND_ORIGIN
-        value: https://spgmarcos.github.io
+        value: https://smartcontrolsite.onrender.com
       - key: COOKIE_SAMESITE
         value: None
       - key: SECURE_SSL_REDIRECT
@@ -44,8 +46,25 @@ services:
       - key: STRIPE_CANCEL_URL
         value: https://spgmarcos.github.io/SmartControlSite/dashboard?checkout=cancel
 
+ 
+  - type: web
+    name: smartcontrol-sites-frontend
+    runtime: node
+    rootDir: frontend
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npx serve -s dist -l $PORT
+    autoDeployTrigger: commit
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://smartcontrol-sites-api.onrender.com/api
+
 databases:
   - name: smartcontrol-sites-db
+    plan: free
+    databaseName: smartcontrol_sites
+    user: smartcontrol
+  - name: dpg-d85ne3li849s7383pqvg-a
     plan: free
     databaseName: smartcontrol_sites
     user: smartcontrol
