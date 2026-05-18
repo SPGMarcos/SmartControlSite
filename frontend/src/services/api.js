@@ -1,4 +1,12 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+const API_BASE_URL =
+  // runtime override injected by server (takes highest precedence)
+  (typeof window !== "undefined" && window.__API_BASE_URL) ||
+  // vite build-time env
+  import.meta.env.VITE_API_BASE_URL ||
+  // if running on Render domain, point to the Render API
+  (typeof window !== "undefined" && window.location.hostname.includes("onrender.com")
+    ? "https://smartcontrol-sites-api.onrender.com/api"
+    : "http://localhost:8000/api");
 const ACCESS_TOKEN_KEY = "smartcontrol_access";
 
 let accessToken = sessionStorage.getItem(ACCESS_TOKEN_KEY);
@@ -90,7 +98,10 @@ export async function apiFetch(path, options = {}) {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.detail || data.non_field_errors?.[0] || "Nao foi possivel concluir a operacao.");
+    const fieldError = Object.values(data)
+      .flat()
+      .find((item) => typeof item === "string");
+    throw new Error(data.detail || data.non_field_errors?.[0] || fieldError || "Nao foi possivel concluir a operacao.");
   }
   return data;
 }
