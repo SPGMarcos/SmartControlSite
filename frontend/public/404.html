@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>SmartControl Sites</title>
+    <script>
+      var pathSegmentsToKeep = 1;
+      var locationPath = window.location.pathname
+        .split("/")
+        .slice(0, 1 + pathSegmentsToKeep)
+        .join("/");
+      var routePath = window.location.pathname
+        .slice(locationPath.length)
+        .replace(/^\//, "")
+        .replace(/&/g, "~and~");
+
+      window.location.replace(
+        window.location.origin +
+          locationPath +
+          "/?/" +
+          routePath +
+          window.location.search.replace("?", "&") +
+          window.location.hash
+      );
+    </script>
+  </head>
+  <body></body>
+</html>
