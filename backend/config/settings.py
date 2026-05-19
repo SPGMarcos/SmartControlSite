@@ -212,21 +212,16 @@ DEFAULT_RENDER_ORIGINS = [
 DEFAULT_GITHUB_PAGES_ORIGINS = [
     "https://spgmarcos.github.io",
 ]
-CORS_ALLOWED_ORIGINS = unique(
-    [strip_trailing_slash(item) for item in env("DJANGO_CORS_ALLOWED_ORIGINS", "", list)]
-    + FRONTEND_ORIGINS
-    + DEFAULT_DEV_ORIGINS
-    + DEFAULT_RENDER_ORIGINS
-    + DEFAULT_GITHUB_PAGES_ORIGINS
-)
+CORS_ALLOWED_ORIGINS = [
+    "https://spgmarcos.github.io",
+]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = unique(list(default_headers) + [
     "x-csrftoken",
 ])
-CSRF_TRUSTED_ORIGINS = unique(
-    [strip_trailing_slash(item) for item in env("DJANGO_CSRF_TRUSTED_ORIGINS", "", list)]
-    + CORS_ALLOWED_ORIGINS
-)
+CSRF_TRUSTED_ORIGINS = [
+    "https://spgmarcos.github.io",
+]
 
 SECURE_SSL_REDIRECT = env("SECURE_SSL_REDIRECT", False, bool)
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
