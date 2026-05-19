@@ -23,7 +23,7 @@ jobs:
         working-directory: frontend
     env:
       VITE_BASE_PATH: /SmartControlSite/
-      VITE_API_URL: ${{ vars.VITE_API_URL || 'https://smartcontrolsite.onrender.com/api' }}
+      VITE_API_URL: ${{ vars.VITE_API_URL || 'https://smartcontrol-sites-api.onrender.com/api' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

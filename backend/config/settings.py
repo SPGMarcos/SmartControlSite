@@ -43,7 +43,7 @@ SECRET_KEY = env("DJANGO_SECRET_KEY", "unsafe-dev-key-change-me")
 DEBUG = env("DJANGO_DEBUG", False, bool)
 ALLOWED_HOSTS = env(
     "DJANGO_ALLOWED_HOSTS",
-    "localhost,127.0.0.1,smartcontrolsite.onrender.com",
+    "localhost,127.0.0.1,smartcontrol-sites-api.onrender.com",
     list,
 )
 RENDER_EXTERNAL_HOSTNAME = env("RENDER_EXTERNAL_HOSTNAME", "")
@@ -206,7 +206,7 @@ DEFAULT_DEV_ORIGINS = [
     "http://localhost:5173",
 ]
 DEFAULT_RENDER_ORIGINS = [
-    "https://smartcontrolsite.onrender.com",
+    "https://smartcontrol-sites-api.onrender.com",
     "https://smartcontrol-sites-frontend.onrender.com",
 ]
 DEFAULT_GITHUB_PAGES_ORIGINS = [
@@ -301,7 +301,7 @@ CSP_CONNECT_SRC = tuple(
             *FRONTEND_ORIGINS,
             *DEFAULT_RENDER_ORIGINS,
             *DEFAULT_GITHUB_PAGES_ORIGINS,
-            "https://smartcontrolsite.onrender.com",
+            "https://smartcontrol-sites-api.onrender.com",
             "https://api.stripe.com",
         ]
     )

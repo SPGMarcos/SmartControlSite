@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: smartcontrolsite
+    name: smartcontrol-sites-api
     runtime: python
     rootDir: backend
     plan: free
@@ -43,18 +43,15 @@ services:
 
       - key: DATABASE_URL
         fromDatabase:
-          name: dpg-d85ne3li849s7383pqvg-a
+          name: smartcontrol-sites-db
           property: connectionString
 
       - key: DJANGO_ALLOWED_HOSTS
-        value: smartcontrolsite.onrender.com
-
+        value: smartcontrol-sites-api.onrender.com
       - key: DJANGO_CORS_ALLOWED_ORIGINS
-        value: https://spgmarcos.github.io,https://smartcontrolsite.onrender.com,https://smartcontrol-sites-frontend.onrender.com
-
+        value: https://spgmarcos.github.io,https://smartcontrol-sites-api.onrender.com,https://smartcontrol-sites-frontend.onrender.com,http://localhost:5173,http://127.0.0.1:5173
       - key: DJANGO_CSRF_TRUSTED_ORIGINS
-        value: https://spgmarcos.github.io,https://smartcontrolsite.onrender.com,https://smartcontrol-sites-frontend.onrender.com
-
+        value: https://spgmarcos.github.io,https://smartcontrol-sites-api.onrender.com,https://smartcontrol-sites-frontend.onrender.com,http://localhost:5173,http://127.0.0.1:5173
       - key: FRONTEND_URL
         value: https://spgmarcos.github.io/SmartControlSite
 
@@ -62,8 +59,7 @@ services:
         value: https://spgmarcos.github.io
 
       - key: FRONTEND_ORIGINS
-        value: https://spgmarcos.github.io,https://smartcontrolsite.onrender.com,https://smartcontrol-sites-frontend.onrender.com
-
+        value: https://spgmarcos.github.io,https://smartcontrol-sites-api.onrender.com,https://smartcontrol-sites-frontend.onrender.com,http://localhost:5173,http://127.0.0.1:5173
       - key: COOKIE_SAMESITE
         value: None
 
@@ -104,16 +100,12 @@ services:
 
     envVars:
       - key: VITE_API_URL
-        value: https://smartcontrolsite.onrender.com/api
-
-      - key: VITE_APP_BASE_PATH
-        value: /SmartControlSite/
-
+        value: https://smartcontrol-sites-api.onrender.com/api
       - key: RENDER_EXTERNAL_HOSTNAME
-        value: smartcontrolsite.onrender.com
+        value: smartcontrol-sites-api.onrender.com
 
 databases:
-  - name: dpg-d85ne3li849s7383pqvg-a
+  - name: smartcontrol-sites-db
     plan: free
     databaseName: smartcontrol_sites
     user: smartcontrol

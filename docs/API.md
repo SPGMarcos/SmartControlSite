@@ -1,6 +1,6 @@
 # API - SmartControl Sites
 
-Base URL de producao: `https://smartcontrolsite.onrender.com/api`
+Base URL de producao: `https://smartcontrol-sites-api.onrender.com/api`
 
 Em desenvolvimento, configure `VITE_API_URL` no frontend ou use o proxy do Vite com `VITE_DEV_API_PROXY_TARGET`.
 
