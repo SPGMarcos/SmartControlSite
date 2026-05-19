@@ -71,8 +71,8 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "csp.middleware.CSPMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -159,17 +159,27 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
-    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+
+    "DEFAULT_RENDERER_CLASSES": (
+        "rest_framework.renderers.JSONRenderer",
+    ),
+
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
+
     "DEFAULT_FILTER_BACKENDS": (
         "django_filters.rest_framework.DjangoFilterBackend",
         "rest_framework.filters.SearchFilter",
         "rest_framework.filters.OrderingFilter",
     ),
+
     "DEFAULT_THROTTLE_CLASSES": (
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
         "rest_framework.throttling.ScopedRateThrottle",
     ),
+
     "DEFAULT_THROTTLE_RATES": {
         "anon": "80/hour",
         "user": "1000/hour",
@@ -288,17 +298,11 @@ CSP_SCRIPT_SRC = ("'self'", "https://js.stripe.com")
 CSP_STYLE_SRC = ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com")
 CSP_FONT_SRC = ("'self'", "https://fonts.gstatic.com")
 CSP_IMG_SRC = ("'self'", "data:", "https:")
-CSP_CONNECT_SRC = tuple(
-    unique(
-        [
-            "'self'",
-            FRONTEND_ORIGIN,
-            *FRONTEND_ORIGINS,
-            *DEFAULT_RENDER_ORIGINS,
-            *DEFAULT_GITHUB_PAGES_ORIGINS,
-            "https://api.stripe.com",
-        ]
-    )
+CSP_CONNECT_SRC = (
+    "'self'",
+    "https://smartcontrolsite.onrender.com",
+    "https://spgmarcos.github.io",
+    "https://api.stripe.com",
 )
 CSP_FRAME_SRC = ("'self'", "https://js.stripe.com", "https://hooks.stripe.com")
 CSP_BASE_URI = ("'self'",)
