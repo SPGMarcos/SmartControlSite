@@ -1,4 +1,4 @@
-const PRODUCTION_API_URL = "https://smartcontrol-sites-api.onrender.com/api";
+const PRODUCTION_API_URL = "https://smartcontrolsite.onrender.com/api";
 
 function getDefaultApiUrl() {
   if (typeof window === "undefined") return PRODUCTION_API_URL;

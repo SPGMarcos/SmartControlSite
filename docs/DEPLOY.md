@@ -9,8 +9,8 @@ Este projeto esta preparado para:
 ## URLs esperadas
 
 - Frontend: `https://spgmarcos.github.io/SmartControlSite/`
-- Backend: `https://smartcontrol-sites-api.onrender.com/api`
-- Health check backend: `https://smartcontrol-sites-api.onrender.com/api/health/`
+- Backend: `https://smartcontrolsite.onrender.com/api`
+- Health check backend: `https://smartcontrolsite.onrender.com/api/health/`
 
 Se o Render mudar o subdominio do backend, atualize:
 
@@ -34,7 +34,7 @@ Passos no GitHub:
 3. Opcional: em `Settings > Secrets and variables > Actions > Variables`, crie:
 
 ```text
-VITE_API_URL=https://smartcontrol-sites-api.onrender.com/api
+VITE_API_URL=https://smartcontrolsite.onrender.com/api
 ```
 
 4. Faca push na branch `main`.
@@ -100,7 +100,7 @@ python manage.py createsuperuser
 No dashboard Stripe, configure o webhook:
 
 ```text
-https://smartcontrol-sites-api.onrender.com/api/billing/webhook/stripe/
+https://smartcontrolsite.onrender.com/api/billing/webhook/stripe/
 ```
 
 Eventos usados:
