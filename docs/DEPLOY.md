@@ -68,6 +68,16 @@ STRIPE_SECRET_KEY
 STRIPE_WEBHOOK_SECRET
 ```
 
+Para o login administrativo inicial, configure tambem no Render:
+
+```text
+SMARTCONTROL_ADMIN_EMAIL
+SMARTCONTROL_ADMIN_PASSWORD
+```
+
+No proximo deploy, o backend executa `python manage.py bootstrap_credentials` depois das migrations e cria ou atualiza esse admin com a senha mais recente configurada no ambiente.
+O comando tambem aceita os aliases `ADMIN_EMAIL`/`ADMIN_PASSWORD`, `DJANGO_SUPERUSER_EMAIL`/`DJANGO_SUPERUSER_PASSWORD`, `SUPERUSER_EMAIL`/`SUPERUSER_PASSWORD` e `RENDER_ADMIN_EMAIL`/`RENDER_ADMIN_PASSWORD`.
+
 O Render usa:
 
 ```bash

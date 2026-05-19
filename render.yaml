@@ -17,6 +17,14 @@ services:
         generateValue: true
       - key: JWT_SECRET_KEY
         generateValue: true
+      - key: SMARTCONTROL_ADMIN_EMAIL
+        sync: false
+      - key: SMARTCONTROL_ADMIN_PASSWORD
+        sync: false
+      - key: SMARTCONTROL_ADMIN_FIRST_NAME
+        value: Admin
+      - key: SMARTCONTROL_ADMIN_LAST_NAME
+        value: SmartControl
       - key: DATABASE_URL
         fromDatabase:
           name: dpg-d85ne3li849s7383pqvg-a

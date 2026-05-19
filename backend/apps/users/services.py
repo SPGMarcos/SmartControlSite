@@ -17,14 +17,18 @@ User = get_user_model()
 class AuthLogService:
     @staticmethod
     def record(request, event, email="", user=None, success=False):
-        return AuthLog.objects.create(
-            user=user,
-            email=email or getattr(user, "email", ""),
-            event=event,
-            ip_address=get_client_ip(request),
-            user_agent=request.META.get("HTTP_USER_AGENT", "")[:1000],
-            success=success,
-        )
+        try:
+            return AuthLog.objects.create(
+                user=user,
+                email=email or getattr(user, "email", ""),
+                event=event,
+                ip_address=get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", "")[:1000],
+                success=success,
+            )
+        except Exception:
+            logger.exception("Failed to create auth log event=%s email=%s", event, email or getattr(user, "email", ""))
+            return None
 
 
 class PasswordResetService:
