@@ -105,23 +105,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-DEFAULT_DATABASE_URL = (
-    f"postgresql://{env('POSTGRES_USER', 'smartcontrol')}:"
-    f"{env('POSTGRES_PASSWORD', 'smartcontrol_dev_password')}@"
-    f"{env('POSTGRES_HOST', 'localhost')}:"
-    f"{env('POSTGRES_PORT', '5432')}/"
-    f"{env('POSTGRES_DB', 'smartcontrol_sites')}"
-)
-DATABASE_URL = env("DATABASE_URL", "")
-if not DEBUG and not DATABASE_URL:
-    raise ImproperlyConfigured("DATABASE_URL must be configured in production.")
-
 DATABASES = {
     "default": dj_database_url.config(
-        default=DATABASE_URL or DEFAULT_DATABASE_URL,
+        default=os.environ.get("DATABASE_URL"),
         conn_max_age=600,
         conn_health_checks=True,
-        ssl_require=not DEBUG,
+        ssl_require=True,
     )
 }
 
