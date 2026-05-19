@@ -14,6 +14,7 @@ const ACCESS_TOKEN_KEY = "smartcontrol_access";
 
 let accessToken = sessionStorage.getItem(ACCESS_TOKEN_KEY);
 let csrfReady = false;
+let csrfToken = "";
 
 function normalizeApiUrl(value) {
   const fallback = "/api";
@@ -50,7 +51,13 @@ async function ensureCsrf() {
   if (!response.ok) {
     throw new Error("Nao foi possivel preparar a seguranca da sessao.");
   }
+  const data = await response.json().catch(() => ({}));
+  csrfToken = data.csrfToken || decodeURIComponent(getCookie("csrftoken") || "");
   csrfReady = true;
+}
+
+function getCsrfToken() {
+  return csrfToken || decodeURIComponent(getCookie("csrftoken") || "");
 }
 
 async function refreshAccessToken() {
@@ -60,7 +67,7 @@ async function refreshAccessToken() {
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      "X-CSRFToken": decodeURIComponent(getCookie("csrftoken") || "")
+      "X-CSRFToken": getCsrfToken()
     }
   });
 
@@ -89,7 +96,7 @@ export async function apiFetch(path, options = {}) {
 
   if (!["GET", "HEAD", "OPTIONS"].includes(method.toUpperCase())) {
     await ensureCsrf();
-    headers.set("X-CSRFToken", decodeURIComponent(getCookie("csrftoken") || ""));
+    headers.set("X-CSRFToken", getCsrfToken());
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
