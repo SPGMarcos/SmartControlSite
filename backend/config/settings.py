@@ -72,8 +72,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "csp.middleware.CSPMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -209,7 +209,7 @@ DEFAULT_GITHUB_PAGES_ORIGINS = [
 ]
 CORS_ALLOWED_ORIGINS = unique(
     [strip_trailing_slash(item) for item in env("DJANGO_CORS_ALLOWED_ORIGINS", "", list)]
-    or FRONTEND_ORIGINS
+    + FRONTEND_ORIGINS
     + DEFAULT_DEV_ORIGINS
     + DEFAULT_RENDER_ORIGINS
     + DEFAULT_GITHUB_PAGES_ORIGINS
@@ -220,7 +220,7 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
 ]
 CSRF_TRUSTED_ORIGINS = unique(
     [strip_trailing_slash(item) for item in env("DJANGO_CSRF_TRUSTED_ORIGINS", "", list)]
-    or CORS_ALLOWED_ORIGINS
+    + CORS_ALLOWED_ORIGINS
 )
 
 SECURE_SSL_REDIRECT = env("SECURE_SSL_REDIRECT", False, bool)
