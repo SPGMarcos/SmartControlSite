@@ -2,6 +2,7 @@ from datetime import timedelta
 import os
 from pathlib import Path
 
+from corsheaders.defaults import default_headers
 import dj_database_url
 from dotenv import load_dotenv
 
@@ -23,12 +24,31 @@ def env(name, default=None, cast=str):
     return value
 
 
+def unique(items):
+    seen = set()
+    result = []
+    for item in items:
+        if item and item not in seen:
+            result.append(item)
+            seen.add(item)
+    return result
+
+
+def strip_trailing_slash(value):
+    return str(value or "").strip().rstrip("/")
+
+
 SECRET_KEY = env("DJANGO_SECRET_KEY", "unsafe-dev-key-change-me")
 DEBUG = env("DJANGO_DEBUG", False, bool)
-ALLOWED_HOSTS = env("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1", list)
+ALLOWED_HOSTS = env(
+    "DJANGO_ALLOWED_HOSTS",
+    "localhost,127.0.0.1,smartcontrolsite.onrender.com",
+    list,
+)
 RENDER_EXTERNAL_HOSTNAME = env("RENDER_EXTERNAL_HOSTNAME", "")
 if RENDER_EXTERNAL_HOSTNAME and RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+ALLOWED_HOSTS = unique(ALLOWED_HOSTS)
 
 
 INSTALLED_APPS = [
@@ -122,6 +142,8 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 STORAGES = {
@@ -169,9 +191,33 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
-CORS_ALLOWED_ORIGINS = env("DJANGO_CORS_ALLOWED_ORIGINS", "http://localhost:5173", list)
+FRONTEND_URL = strip_trailing_slash(env("FRONTEND_URL", "http://127.0.0.1:5173"))
+FRONTEND_ORIGIN = strip_trailing_slash(env("FRONTEND_ORIGIN", FRONTEND_URL))
+FRONTEND_ORIGINS = unique(
+    [strip_trailing_slash(item) for item in env("FRONTEND_ORIGINS", FRONTEND_ORIGIN, list)]
+)
+DEFAULT_DEV_ORIGINS = [
+    "http://127.0.0.1:5173",
+    "http://localhost:5173",
+]
+DEFAULT_RENDER_ORIGINS = [
+    "https://smartcontrolsite.onrender.com",
+    "https://smartcontrol-sites-frontend.onrender.com",
+]
+CORS_ALLOWED_ORIGINS = unique(
+    [strip_trailing_slash(item) for item in env("DJANGO_CORS_ALLOWED_ORIGINS", "", list)]
+    or FRONTEND_ORIGINS
+    + DEFAULT_DEV_ORIGINS
+    + DEFAULT_RENDER_ORIGINS
+)
 CORS_ALLOW_CREDENTIALS = True
-CSRF_TRUSTED_ORIGINS = env("DJANGO_CSRF_TRUSTED_ORIGINS", "http://localhost:5173", list)
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "x-csrftoken",
+]
+CSRF_TRUSTED_ORIGINS = unique(
+    [strip_trailing_slash(item) for item in env("DJANGO_CSRF_TRUSTED_ORIGINS", "", list)]
+    or CORS_ALLOWED_ORIGINS
+)
 
 SECURE_SSL_REDIRECT = env("SECURE_SSL_REDIRECT", False, bool)
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -186,16 +232,52 @@ CSRF_COOKIE_SECURE = not DEBUG
 COOKIE_SAMESITE = env("COOKIE_SAMESITE", "Lax" if DEBUG else "None")
 SESSION_COOKIE_SAMESITE = COOKIE_SAMESITE
 CSRF_COOKIE_SAMESITE = COOKIE_SAMESITE
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_NAME = env("CSRF_COOKIE_NAME", "csrftoken")
+CSRF_COOKIE_PATH = "/"
+CSRF_USE_SESSIONS = False
 
-FRONTEND_URL = env("FRONTEND_URL", "http://localhost:5173")
-FRONTEND_ORIGIN = env("FRONTEND_ORIGIN", FRONTEND_URL)
 STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET", "")
-STRIPE_SUCCESS_URL = env("STRIPE_SUCCESS_URL", f"{FRONTEND_URL}/dashboard?checkout=success")
-STRIPE_CANCEL_URL = env("STRIPE_CANCEL_URL", f"{FRONTEND_URL}/dashboard?checkout=cancel")
+STRIPE_SUCCESS_URL = env("STRIPE_SUCCESS_URL", f"{FRONTEND_URL}/billing?checkout=success&session_id={{CHECKOUT_SESSION_ID}}")
+STRIPE_CANCEL_URL = env("STRIPE_CANCEL_URL", f"{FRONTEND_URL}/billing?checkout=cancel")
+STRIPE_PORTAL_RETURN_URL = env("STRIPE_PORTAL_RETURN_URL", f"{FRONTEND_URL}/billing")
 JWT_REFRESH_COOKIE_NAME = env("JWT_REFRESH_COOKIE_NAME", "sc_refresh")
 JWT_REFRESH_COOKIE_MAX_AGE = 7 * 24 * 60 * 60
 JWT_REFRESH_COOKIE_SAMESITE = env("JWT_REFRESH_COOKIE_SAMESITE", COOKIE_SAMESITE)
+JWT_REFRESH_COOKIE_SECURE = env("JWT_REFRESH_COOKIE_SECURE", not DEBUG, bool)
+
+PROJECT_ATTACHMENT_MAX_FILES = env("PROJECT_ATTACHMENT_MAX_FILES", 10, int)
+PROJECT_ATTACHMENT_MAX_SIZE = env("PROJECT_ATTACHMENT_MAX_SIZE", 10 * 1024 * 1024, int)
+PROJECT_ATTACHMENT_ALLOWED_EXTENSIONS = {
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".gif",
+    ".pdf",
+    ".doc",
+    ".docx",
+    ".xls",
+    ".xlsx",
+    ".txt",
+    ".zip",
+}
+PROJECT_ATTACHMENT_ALLOWED_CONTENT_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "text/plain",
+    "application/zip",
+    "application/x-zip-compressed",
+}
 
 CSP_DEFAULT_SRC = ("'self'",)
 CSP_SCRIPT_SRC = ("'self'", "https://js.stripe.com")

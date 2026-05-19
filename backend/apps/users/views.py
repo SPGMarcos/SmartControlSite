@@ -27,7 +27,7 @@ def set_refresh_cookie(response, refresh_token):
         str(refresh_token),
         max_age=settings.JWT_REFRESH_COOKIE_MAX_AGE,
         httponly=True,
-        secure=not settings.DEBUG,
+        secure=settings.JWT_REFRESH_COOKIE_SECURE,
         samesite=settings.JWT_REFRESH_COOKIE_SAMESITE,
         path="/api/auth/",
     )
@@ -37,7 +37,7 @@ def clear_refresh_cookie(response):
     response.delete_cookie(
         settings.JWT_REFRESH_COOKIE_NAME,
         path="/api/auth/",
-        secure=not settings.DEBUG,
+        secure=settings.JWT_REFRESH_COOKIE_SECURE,
         samesite=settings.JWT_REFRESH_COOKIE_SAMESITE,
     )
 

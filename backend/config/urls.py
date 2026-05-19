@@ -1,8 +1,10 @@
 from django.contrib import admin
+from django.conf import settings
+from django.conf.urls.static import static
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from apps.billing.views import CheckoutSessionView, PaymentViewSet, PlanViewSet, StripeWebhookView, SubscriptionViewSet
+from apps.billing.views import CheckoutSessionView, CustomerPortalSessionView, PaymentViewSet, PlanViewSet, StripeWebhookView, SubscriptionViewSet, TransactionLogViewSet
 from apps.clients.views import ClientViewSet
 from apps.core.views import csrf, health
 from apps.projects.views import ProjectViewSet, ServiceRequestViewSet
@@ -13,6 +15,7 @@ router.register("clients", ClientViewSet, basename="clients")
 router.register("plans", PlanViewSet, basename="plans")
 router.register("subscriptions", SubscriptionViewSet, basename="subscriptions")
 router.register("payments", PaymentViewSet, basename="payments")
+router.register("transaction-logs", TransactionLogViewSet, basename="transaction-logs")
 router.register("projects", ProjectViewSet, basename="projects")
 router.register("requests", ServiceRequestViewSet, basename="requests")
 
@@ -28,6 +31,10 @@ urlpatterns = [
     path("api/auth/password-reset/", PasswordResetRequestView.as_view(), name="password_reset"),
     path("api/auth/password-reset/confirm/", PasswordResetConfirmView.as_view(), name="password_reset_confirm"),
     path("api/billing/checkout-session/", CheckoutSessionView.as_view(), name="checkout_session"),
+    path("api/billing/customer-portal/", CustomerPortalSessionView.as_view(), name="customer_portal"),
     path("api/billing/webhook/stripe/", StripeWebhookView.as_view(), name="stripe_webhook"),
     path("api/", include(router.urls)),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

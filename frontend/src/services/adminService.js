@@ -8,6 +8,13 @@ export function getAdminProjects() {
   return apiFetch("/projects/");
 }
 
+export function updateProject(id, payload) {
+  return apiFetch(`/projects/${id}/`, {
+    method: "PATCH",
+    body: payload
+  });
+}
+
 export function getPlans() {
   return apiFetch("/plans/");
 }

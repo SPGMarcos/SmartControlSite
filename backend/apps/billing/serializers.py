@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from apps.core.validators import sanitize_text
 
-from .models import Payment, Plan, Subscription
+from .models import Payment, Plan, Subscription, TransactionLog
 
 
 class PlanSerializer(serializers.ModelSerializer):
@@ -38,6 +38,7 @@ class PlanSerializer(serializers.ModelSerializer):
 class SubscriptionSerializer(serializers.ModelSerializer):
     client_company = serializers.CharField(source="client.company_name", read_only=True)
     plan_name = serializers.CharField(source="plan.name", read_only=True)
+    project_name = serializers.CharField(source="project.name", read_only=True)
 
     class Meta:
         model = Subscription
@@ -47,6 +48,8 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             "client_company",
             "plan",
             "plan_name",
+            "project",
+            "project_name",
             "status",
             "current_period_start",
             "current_period_end",
@@ -74,6 +77,7 @@ class PaymentSerializer(serializers.ModelSerializer):
             "status",
             "amount",
             "currency",
+            "stripe_checkout_session_id",
             "paid_at",
             "created_at",
             "updated_at",
@@ -82,6 +86,41 @@ class PaymentSerializer(serializers.ModelSerializer):
 
 
 class CheckoutSessionSerializer(serializers.Serializer):
-    plan_id = serializers.IntegerField()
+    plan_id = serializers.IntegerField(required=False)
     kind = serializers.ChoiceField(choices=Payment.Kind.choices)
     project_id = serializers.IntegerField(required=False)
+    installments = serializers.IntegerField(required=False, min_value=2, max_value=12)
+
+    def validate(self, attrs):
+        if "plan_id" not in attrs and "project_id" not in attrs:
+            raise serializers.ValidationError("Informe um plano ou projeto para pagamento.")
+        if attrs.get("kind") == Payment.Kind.SUBSCRIPTION and attrs.get("installments"):
+            raise serializers.ValidationError("Parcelamento se aplica apenas a pagamentos de projeto.")
+        return attrs
+
+
+class TransactionLogSerializer(serializers.ModelSerializer):
+    client_company = serializers.CharField(source="client.company_name", read_only=True)
+    project_name = serializers.CharField(source="project.name", read_only=True)
+
+    class Meta:
+        model = TransactionLog
+        fields = (
+            "id",
+            "provider",
+            "stripe_event_id",
+            "event_type",
+            "status",
+            "client",
+            "client_company",
+            "subscription",
+            "project",
+            "project_name",
+            "payment",
+            "amount",
+            "currency",
+            "payload",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields

@@ -191,6 +191,12 @@ button {
   cursor: not-allowed;
 }
 
+.secondary-button:disabled,
+.ghost-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .secondary-button {
   color: var(--ink);
   background: var(--surface);
@@ -780,9 +786,36 @@ button {
   resize: vertical;
 }
 
+.file-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 11px 12px;
+  color: var(--trust-text);
+  border: 1px dashed color-mix(in srgb, var(--blue) 34%, var(--line));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 88%, var(--soft));
+  overflow: hidden;
+}
+
+.file-input input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
 .form-error,
 .notice.error {
   color: var(--danger);
+}
+
+.notice.success {
+  color: #15803d;
+  border-color: color-mix(in srgb, var(--green) 34%, var(--line));
+  background: color-mix(in srgb, var(--green) 9%, var(--surface));
 }
 
 .form-success {
@@ -1009,6 +1042,29 @@ button {
   border-color: color-mix(in srgb, var(--blue) 30%, var(--line));
 }
 
+.table-row.align-start,
+.compact-item.align-start {
+  align-items: flex-start;
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mini-select {
+  min-height: 36px;
+  max-width: 190px;
+  padding: 7px 10px;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--input-bg);
+}
+
 .table-row strong,
 .table-row span,
 .compact-item strong,
@@ -1048,14 +1104,17 @@ button {
 .status-active,
 .status-paid,
 .status-published,
-.status-done {
+.status-done,
+.status-completed,
+.status-in_development {
   color: #166534;
   background: var(--success-soft);
 }
 
 .status-past_due,
 .status-failed,
-.status-blocked {
+.status-blocked,
+.status-unpaid {
   color: #991b1b;
   background: var(--danger-soft);
 }
@@ -1063,7 +1122,12 @@ button {
 .status-pending,
 .status-review,
 .status-open,
-.status-in_progress {
+.status-in_progress,
+.status-awaiting_analysis,
+.status-quote_sent,
+.status-payment_pending,
+.status-incomplete,
+.status-refunded {
   color: #92400e;
   background: var(--warning-soft);
 }
@@ -1075,20 +1139,28 @@ button {
 :root[data-theme="dark"] .status-active,
 :root[data-theme="dark"] .status-paid,
 :root[data-theme="dark"] .status-published,
-:root[data-theme="dark"] .status-done {
+:root[data-theme="dark"] .status-done,
+:root[data-theme="dark"] .status-completed,
+:root[data-theme="dark"] .status-in_development {
   color: #86efac;
 }
 
 :root[data-theme="dark"] .status-past_due,
 :root[data-theme="dark"] .status-failed,
-:root[data-theme="dark"] .status-blocked {
+:root[data-theme="dark"] .status-blocked,
+:root[data-theme="dark"] .status-unpaid {
   color: #fca5a5;
 }
 
 :root[data-theme="dark"] .status-pending,
 :root[data-theme="dark"] .status-review,
 :root[data-theme="dark"] .status-open,
-:root[data-theme="dark"] .status-in_progress {
+:root[data-theme="dark"] .status-in_progress,
+:root[data-theme="dark"] .status-awaiting_analysis,
+:root[data-theme="dark"] .status-quote_sent,
+:root[data-theme="dark"] .status-payment_pending,
+:root[data-theme="dark"] .status-incomplete,
+:root[data-theme="dark"] .status-refunded {
   color: #fcd34d;
 }
 

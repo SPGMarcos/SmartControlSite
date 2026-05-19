@@ -1,6 +1,8 @@
 # API - SmartControl Sites
 
-Base URL local: `http://localhost:8000/api`
+Base URL de producao: `https://smartcontrolsite.onrender.com/api`
+
+Em desenvolvimento, configure `VITE_API_URL` no frontend ou use o proxy do Vite com `VITE_DEV_API_PROXY_TARGET`.
 
 ## Health
 
@@ -44,9 +46,9 @@ Base URL local: `http://localhost:8000/api`
 | Metodo | Endpoint | Acesso | Descricao |
 | --- | --- | --- | --- |
 | GET | `/projects/` | Admin ou cliente | Lista projetos permitidos |
-| POST | `/projects/` | Admin | Cria projeto |
+| POST | `/projects/` | Cliente/Admin | Solicita novo projeto com briefing e anexos |
 | GET | `/projects/{id}/` | Admin ou dono | Detalha projeto |
-| PATCH | `/projects/{id}/` | Admin | Atualiza projeto |
+| PATCH | `/projects/{id}/` | Admin | Atualiza projeto, status e plano/orcamento |
 
 ## Solicitacoes
 
@@ -62,7 +64,9 @@ Base URL local: `http://localhost:8000/api`
 | --- | --- | --- | --- |
 | GET | `/subscriptions/` | Admin ou cliente | Lista assinaturas permitidas |
 | GET | `/payments/` | Admin ou cliente | Lista pagamentos permitidos |
-| POST | `/billing/checkout-session/` | Cliente | Cria sessao Stripe Checkout |
+| GET | `/transaction-logs/` | Admin | Lista logs transacionais Stripe |
+| POST | `/billing/checkout-session/` | Cliente | Cria sessao Stripe Checkout para pagamento unico, parcelamento ou assinatura |
+| POST | `/billing/customer-portal/` | Cliente | Cria sessao do portal de assinatura Stripe |
 | POST | `/billing/webhook/stripe/` | Stripe | Recebe eventos assinados |
 
 ## Padrao de erro

@@ -1,4 +1,4 @@
-import { LayoutDashboard, LogOut, Shield, UserRound } from "lucide-react";
+import { CreditCard, LayoutDashboard, LogOut, Shield, UserRound } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 import { useAuth } from "../hooks/useAuth.js";
@@ -19,6 +19,10 @@ export default function AppShell({ children }) {
           <NavLink to="/dashboard">
             <LayoutDashboard size={18} />
             Cliente
+          </NavLink>
+          <NavLink to="/billing">
+            <CreditCard size={18} />
+            Billing
           </NavLink>
           {isAdmin && (
             <NavLink to="/admin">

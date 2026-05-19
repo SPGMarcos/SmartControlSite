@@ -1,16 +1,25 @@
-const API_BASE_URL =
-  // runtime override injected by server (takes highest precedence)
+const PRODUCTION_API_URL = "https://smartcontrolsite.onrender.com/api";
+
+function getDefaultApiUrl() {
+  if (typeof window === "undefined") return PRODUCTION_API_URL;
+  return ["localhost", "127.0.0.1"].includes(window.location.hostname) ? "/api" : PRODUCTION_API_URL;
+}
+
+const API_BASE_URL = normalizeApiUrl(
   (typeof window !== "undefined" && window.__API_BASE_URL) ||
-  // vite build-time env
-  import.meta.env.VITE_API_BASE_URL ||
-  // if running on Render domain, point to the Render API
-  (typeof window !== "undefined" && window.location.hostname.includes("onrender.com")
-    ? "https://smartcontrol-sites-api.onrender.com/api"
-    : "http://localhost:8000/api");
+    import.meta.env.VITE_API_URL ||
+    getDefaultApiUrl()
+);
 const ACCESS_TOKEN_KEY = "smartcontrol_access";
 
 let accessToken = sessionStorage.getItem(ACCESS_TOKEN_KEY);
 let csrfReady = false;
+
+function normalizeApiUrl(value) {
+  const fallback = "/api";
+  const url = String(value || fallback).trim() || fallback;
+  return url.replace(/\/+$/, "");
+}
 
 export function setAccessToken(token) {
   accessToken = token || null;
@@ -34,10 +43,13 @@ function getCookie(name) {
 
 async function ensureCsrf() {
   if (csrfReady) return;
-  await fetch(`${API_BASE_URL}/csrf/`, {
+  const response = await fetch(`${API_BASE_URL}/csrf/`, {
     method: "GET",
     credentials: "include"
   });
+  if (!response.ok) {
+    throw new Error("Nao foi possivel preparar a seguranca da sessao.");
+  }
   csrfReady = true;
 }
 
@@ -107,3 +119,4 @@ export async function apiFetch(path, options = {}) {
 }
 
 export { refreshAccessToken };
+export { API_BASE_URL };

@@ -35,6 +35,7 @@ class Subscription(TimeStampedModel):
 
     client = models.ForeignKey(Client, related_name="subscriptions", on_delete=models.CASCADE)
     plan = models.ForeignKey(Plan, related_name="subscriptions", on_delete=models.RESTRICT)
+    project = models.ForeignKey("projects.Project", related_name="subscriptions", null=True, blank=True, on_delete=models.SET_NULL)
     status = models.CharField(max_length=32, choices=Status.choices, default=Status.PENDING)
     stripe_subscription_id = models.CharField(max_length=128, unique=True, null=True, blank=True)
     current_period_start = models.DateTimeField(null=True, blank=True)
@@ -57,6 +58,7 @@ class Payment(TimeStampedModel):
     class Kind(models.TextChoices):
         ONE_TIME = "one_time", "One time"
         SUBSCRIPTION = "subscription", "Subscription"
+        INSTALLMENT = "installment", "Installment"
 
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
@@ -72,9 +74,11 @@ class Payment(TimeStampedModel):
     status = models.CharField(max_length=24, choices=Status.choices, default=Status.PENDING)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     currency = models.CharField(max_length=3, default="BRL")
+    stripe_checkout_session_id = models.CharField(max_length=128, unique=True, null=True, blank=True)
     stripe_payment_intent_id = models.CharField(max_length=128, unique=True, null=True, blank=True)
     stripe_invoice_id = models.CharField(max_length=128, unique=True, null=True, blank=True)
     paid_at = models.DateTimeField(null=True, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
 
     class Meta:
         db_table = "payments"
@@ -82,8 +86,43 @@ class Payment(TimeStampedModel):
             models.Index(fields=["client"]),
             models.Index(fields=["status"]),
             models.Index(fields=["kind"]),
+            models.Index(fields=["stripe_checkout_session_id"]),
         ]
         ordering = ["-created_at"]
 
     def __str__(self):
         return f"{self.client} {self.kind} {self.amount} {self.status}"
+
+
+class TransactionLog(TimeStampedModel):
+    class Status(models.TextChoices):
+        CREATED = "created", "Created"
+        PROCESSED = "processed", "Processed"
+        IGNORED = "ignored", "Ignored"
+        FAILED = "failed", "Failed"
+        DUPLICATE = "duplicate", "Duplicate"
+
+    provider = models.CharField(max_length=32, default="stripe")
+    stripe_event_id = models.CharField(max_length=128, unique=True, null=True, blank=True)
+    event_type = models.CharField(max_length=120)
+    status = models.CharField(max_length=24, choices=Status.choices, default=Status.CREATED)
+    client = models.ForeignKey(Client, related_name="transaction_logs", null=True, blank=True, on_delete=models.SET_NULL)
+    subscription = models.ForeignKey(Subscription, related_name="transaction_logs", null=True, blank=True, on_delete=models.SET_NULL)
+    project = models.ForeignKey("projects.Project", related_name="transaction_logs", null=True, blank=True, on_delete=models.SET_NULL)
+    payment = models.ForeignKey(Payment, related_name="transaction_logs", null=True, blank=True, on_delete=models.SET_NULL)
+    amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    currency = models.CharField(max_length=3, blank=True)
+    payload = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = "transaction_logs"
+        indexes = [
+            models.Index(fields=["provider", "event_type"]),
+            models.Index(fields=["status"]),
+            models.Index(fields=["client"]),
+            models.Index(fields=["created_at"]),
+        ]
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.provider}:{self.event_type}:{self.status}"

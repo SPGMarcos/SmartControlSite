@@ -1,11 +1,11 @@
-import { CreditCard, FolderKanban, MessageSquarePlus, RefreshCcw, ShieldCheck } from "lucide-react";
+import { CreditCard, FileUp, FolderKanban, MessageSquarePlus, RefreshCcw, Send, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import AppShell from "../components/AppShell.jsx";
 import StatCard from "../components/StatCard.jsx";
 import StatusBadge from "../components/StatusBadge.jsx";
 import { useAuth } from "../hooks/useAuth.js";
-import { createRequest, getClientProfile, getPayments, getProjects, getRequests, getSubscriptions } from "../services/dashboardService.js";
+import { createProject, createRequest, getClientProfile, getPayments, getProjects, getRequests, getSubscriptions } from "../services/dashboardService.js";
 import { cleanText } from "../utils/security.js";
 
 function asArray(value) {
@@ -16,6 +16,12 @@ function money(value, currency = "BRL") {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(Number(value || 0));
 }
 
+const projectTypeLabels = {
+  landing_page: "Landing page",
+  institutional_site: "Site institucional",
+  web_system: "Sistema web"
+};
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const [client, setClient] = useState(null);
@@ -24,7 +30,17 @@ export default function DashboardPage() {
   const [subscriptions, setSubscriptions] = useState([]);
   const [payments, setPayments] = useState([]);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(true);
+  const [projectForm, setProjectForm] = useState({
+    name: "",
+    site_type: "landing_page",
+    description: "",
+    references: "",
+    desired_features: "",
+    visual_style: ""
+  });
+  const [projectFiles, setProjectFiles] = useState([]);
   const [requestForm, setRequestForm] = useState({ project_id: "", title: "", description: "", priority: "medium" });
 
   const load = async () => {
@@ -69,14 +85,51 @@ export default function DashboardPage() {
   const submitRequest = async (event) => {
     event.preventDefault();
     if (!requestForm.project_id) return;
-    await createRequest({
-      project_id: Number(requestForm.project_id),
-      title: cleanText(requestForm.title),
-      description: cleanText(requestForm.description),
-      priority: requestForm.priority
-    });
-    setRequestForm((current) => ({ ...current, title: "", description: "" }));
-    await load();
+    setError("");
+    try {
+      await createRequest({
+        project_id: Number(requestForm.project_id),
+        title: cleanText(requestForm.title),
+        description: cleanText(requestForm.description),
+        priority: requestForm.priority
+      });
+      setRequestForm((current) => ({ ...current, title: "", description: "" }));
+      await load();
+    } catch (item) {
+      setError(item.message);
+    }
+  };
+
+  const submitProject = async (event) => {
+    event.preventDefault();
+    setError("");
+    setSuccess("");
+    try {
+      await createProject(
+        {
+          name: cleanText(projectForm.name),
+          site_type: projectForm.site_type,
+          description: cleanText(projectForm.description),
+          references: cleanText(projectForm.references),
+          desired_features: cleanText(projectForm.desired_features),
+          visual_style: cleanText(projectForm.visual_style)
+        },
+        projectFiles
+      );
+      setProjectForm({
+        name: "",
+        site_type: "landing_page",
+        description: "",
+        references: "",
+        desired_features: "",
+        visual_style: ""
+      });
+      setProjectFiles([]);
+      setSuccess("Projeto enviado para analise. Voce pode acompanhar o status por aqui.");
+      await load();
+    } catch (item) {
+      setError(item.message);
+    }
   };
 
   return (
@@ -85,7 +138,7 @@ export default function DashboardPage() {
         <div>
           <span className="eyebrow">Area do cliente</span>
           <h1>Ola, {user?.first_name || client?.company_name || "cliente"}</h1>
-          <p>Acompanhe seu plano, status do projeto, historico financeiro e solicitacoes.</p>
+          <p>Acompanhe seu plano, projetos, historico financeiro e solicitacoes.</p>
         </div>
         <button className="secondary-button" type="button" onClick={load}>
           <RefreshCcw size={18} />
@@ -94,6 +147,7 @@ export default function DashboardPage() {
       </header>
 
       {error && <p className="notice error">{error}</p>}
+      {success && <p className="notice success">{success}</p>}
       {loading && <p className="notice">Carregando dados...</p>}
 
       <section className="stats-grid">
@@ -106,6 +160,54 @@ export default function DashboardPage() {
       <section className="dashboard-grid">
         <article className="panel span-2">
           <div className="panel-heading">
+            <h2>Solicitar novo projeto</h2>
+          </div>
+          <form className="form two-columns" onSubmit={submitProject}>
+            <label>
+              Nome do projeto
+              <input value={projectForm.name} onChange={(event) => setProjectForm({ ...projectForm, name: event.target.value })} required />
+            </label>
+            <label>
+              Tipo
+              <select value={projectForm.site_type} onChange={(event) => setProjectForm({ ...projectForm, site_type: event.target.value })}>
+                <option value="landing_page">Landing page</option>
+                <option value="institutional_site">Site institucional</option>
+                <option value="web_system">Sistema web</option>
+              </select>
+            </label>
+            <label className="span-2">
+              Descricao
+              <textarea value={projectForm.description} onChange={(event) => setProjectForm({ ...projectForm, description: event.target.value })} required />
+            </label>
+            <label>
+              Referencias
+              <textarea value={projectForm.references} onChange={(event) => setProjectForm({ ...projectForm, references: event.target.value })} placeholder="Links, marcas ou exemplos visuais" />
+            </label>
+            <label>
+              Funcionalidades desejadas
+              <textarea value={projectForm.desired_features} onChange={(event) => setProjectForm({ ...projectForm, desired_features: event.target.value })} placeholder="Formulario, painel, integracoes..." />
+            </label>
+            <label>
+              Estilo visual
+              <textarea value={projectForm.visual_style} onChange={(event) => setProjectForm({ ...projectForm, visual_style: event.target.value })} placeholder="Minimalista, corporativo, vibrante..." />
+            </label>
+            <label>
+              Arquivos e imagens
+              <span className="file-input">
+                <FileUp size={18} />
+                <input type="file" multiple onChange={(event) => setProjectFiles(Array.from(event.target.files || []))} />
+              </span>
+              {projectFiles.length > 0 && <small>{projectFiles.length} arquivo(s) selecionado(s)</small>}
+            </label>
+            <button className="primary-button full span-2" type="submit">
+              <Send size={18} />
+              Enviar projeto
+            </button>
+          </form>
+        </article>
+
+        <article className="panel span-2">
+          <div className="panel-heading">
             <h2>Projetos</h2>
           </div>
           <div className="table-like">
@@ -114,7 +216,10 @@ export default function DashboardPage() {
               <div className="table-row" key={project.id}>
                 <div>
                   <strong>{project.name}</strong>
-                  <span>{project.domain || project.site_type}</span>
+                  <span>
+                    {project.domain || projectTypeLabels[project.site_type] || project.site_type}
+                    {project.plan_name ? ` - ${project.plan_name}` : ""}
+                  </span>
                 </div>
                 <StatusBadge value={project.status} />
               </div>
@@ -146,7 +251,7 @@ export default function DashboardPage() {
 
         <article className="panel">
           <div className="panel-heading">
-            <h2>Nova solicitacao</h2>
+            <h2>Suporte do projeto</h2>
           </div>
           <form className="form compact" onSubmit={submitRequest}>
             <label>

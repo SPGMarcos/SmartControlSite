@@ -83,24 +83,47 @@ CREATE TABLE projects (
     plan_id BIGINT NULL REFERENCES plans(id) ON DELETE SET NULL,
     name VARCHAR(160) NOT NULL,
     site_type VARCHAR(32) NOT NULL,
-    status VARCHAR(32) NOT NULL DEFAULT 'planning',
+    status VARCHAR(32) NOT NULL DEFAULT 'awaiting_analysis',
     domain VARCHAR(255) NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
+    references TEXT NOT NULL DEFAULT '',
+    desired_features TEXT NOT NULL DEFAULT '',
+    visual_style TEXT NOT NULL DEFAULT '',
     repository_url VARCHAR(500) NOT NULL DEFAULT '',
     production_url VARCHAR(500) NOT NULL DEFAULT '',
     start_date DATE NULL,
     due_date DATE NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT projects_site_type_check CHECK (site_type IN ('landing_page', 'online_store', 'system')),
+    CONSTRAINT projects_site_type_check CHECK (site_type IN ('landing_page', 'institutional_site', 'web_system')),
     CONSTRAINT projects_status_check CHECK (
-        status IN ('planning', 'design', 'development', 'review', 'published', 'paused', 'canceled')
+        status IN ('awaiting_analysis', 'quote_sent', 'payment_pending', 'in_development', 'review', 'completed')
     )
 );
 
 CREATE INDEX idx_projects_client ON projects(client_id);
 CREATE INDEX idx_projects_status ON projects(status);
 CREATE INDEX idx_projects_site_type ON projects(site_type);
+
+CREATE TABLE project_attachments (
+    id BIGSERIAL PRIMARY KEY,
+    project_id BIGINT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    uploaded_by_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    file VARCHAR(100) NOT NULL,
+    original_name VARCHAR(255) NOT NULL,
+    content_type VARCHAR(120) NOT NULL DEFAULT '',
+    size INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_project_attachments_project ON project_attachments(project_id);
+CREATE INDEX idx_project_attachments_uploaded_by ON project_attachments(uploaded_by_id);
+
+ALTER TABLE subscriptions
+    ADD COLUMN project_id BIGINT NULL REFERENCES projects(id) ON DELETE SET NULL;
+
+CREATE INDEX idx_subscriptions_project ON subscriptions(project_id);
 
 CREATE TABLE requests (
     id BIGSERIAL PRIMARY KEY,
@@ -135,7 +158,9 @@ CREATE TABLE payments (
     paid_at TIMESTAMPTZ NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT payments_kind_check CHECK (kind IN ('one_time', 'subscription')),
+    stripe_checkout_session_id VARCHAR(128) UNIQUE NULL,
+    metadata JSONB NOT NULL DEFAULT '{}',
+    CONSTRAINT payments_kind_check CHECK (kind IN ('one_time', 'subscription', 'installment')),
     CONSTRAINT payments_status_check CHECK (status IN ('pending', 'paid', 'failed', 'refunded', 'canceled')),
     CONSTRAINT payments_amount_check CHECK (amount >= 0)
 );
@@ -143,6 +168,32 @@ CREATE TABLE payments (
 CREATE INDEX idx_payments_client ON payments(client_id);
 CREATE INDEX idx_payments_status ON payments(status);
 CREATE INDEX idx_payments_kind ON payments(kind);
+CREATE INDEX idx_payments_checkout_session ON payments(stripe_checkout_session_id);
+
+CREATE TABLE transaction_logs (
+    id BIGSERIAL PRIMARY KEY,
+    provider VARCHAR(32) NOT NULL DEFAULT 'stripe',
+    stripe_event_id VARCHAR(128) UNIQUE NULL,
+    event_type VARCHAR(120) NOT NULL,
+    status VARCHAR(24) NOT NULL DEFAULT 'created',
+    client_id BIGINT NULL REFERENCES clients(id) ON DELETE SET NULL,
+    subscription_id BIGINT NULL REFERENCES subscriptions(id) ON DELETE SET NULL,
+    project_id BIGINT NULL REFERENCES projects(id) ON DELETE SET NULL,
+    payment_id BIGINT NULL REFERENCES payments(id) ON DELETE SET NULL,
+    amount NUMERIC(10,2) NULL,
+    currency CHAR(3) NOT NULL DEFAULT '',
+    payload JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT transaction_logs_status_check CHECK (
+        status IN ('created', 'processed', 'ignored', 'failed', 'duplicate')
+    )
+);
+
+CREATE INDEX idx_transaction_logs_provider_event ON transaction_logs(provider, event_type);
+CREATE INDEX idx_transaction_logs_status ON transaction_logs(status);
+CREATE INDEX idx_transaction_logs_client ON transaction_logs(client_id);
+CREATE INDEX idx_transaction_logs_created_at ON transaction_logs(created_at);
 
 CREATE TABLE audit_logs (
     id BIGSERIAL PRIMARY KEY,

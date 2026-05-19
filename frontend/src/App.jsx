@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import PageTransition from "./components/PageTransition.jsx";
 import { useScrollReveal } from "./hooks/useScrollReveal.js";
 import AdminPage from "./pages/AdminPage.jsx";
+import BillingPage from "./pages/BillingPage.jsx";
 import DashboardPage from "./pages/DashboardPage.jsx";
 import LandingPage from "./pages/LandingPage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
@@ -27,6 +28,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/billing"
+          element={
+            <ProtectedRoute>
+              <BillingPage />
             </ProtectedRoute>
           }
         />

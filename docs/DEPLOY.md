@@ -9,12 +9,12 @@ Este projeto esta preparado para:
 ## URLs esperadas
 
 - Frontend: `https://spgmarcos.github.io/SmartControlSite/`
-- Backend: `https://smartcontrol-sites-api.onrender.com/api`
-- Health check backend: `https://smartcontrol-sites-api.onrender.com/api/health/`
+- Backend: `https://smartcontrolsite.onrender.com/api`
+- Health check backend: `https://smartcontrolsite.onrender.com/api/health/`
 
 Se o Render mudar o subdominio do backend, atualize:
 
-- Variavel do GitHub Actions: `VITE_API_BASE_URL`
+- Variavel do GitHub Actions: `VITE_API_URL`
 - Variaveis do Render: `DJANGO_ALLOWED_HOSTS`, `STRIPE_SUCCESS_URL`, `STRIPE_CANCEL_URL`
 - O proprio `render.yaml`, se quiser manter tudo documentado no repo
 
@@ -34,7 +34,7 @@ Passos no GitHub:
 3. Opcional: em `Settings > Secrets and variables > Actions > Variables`, crie:
 
 ```text
-VITE_API_BASE_URL=https://smartcontrol-sites-api.onrender.com/api
+VITE_API_URL=https://smartcontrolsite.onrender.com/api
 ```
 
 4. Faca push na branch `main`.
@@ -52,8 +52,8 @@ Depois publica `frontend/dist` no GitHub Pages.
 
 O arquivo `render.yaml` cria:
 
-- Web service Python gratuito: `smartcontrol-sites-api`
-- PostgreSQL gratuito: `smartcontrol-sites-db`
+- Web service Python gratuito: `smartcontrolsite`
+- PostgreSQL gratuito conectado pela referencia `dpg-d85ne3li849s7383pqvg-a`
 
 Passos no Render:
 
@@ -90,7 +90,7 @@ python manage.py createsuperuser
 No dashboard Stripe, configure o webhook:
 
 ```text
-https://smartcontrol-sites-api.onrender.com/api/billing/webhook/stripe/
+https://smartcontrolsite.onrender.com/api/billing/webhook/stripe/
 ```
 
 Eventos usados:

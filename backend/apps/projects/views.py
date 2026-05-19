@@ -1,4 +1,5 @@
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.viewsets import ModelViewSet
 
 from apps.core.permissions import IsAdmin, IsAdminOrClientOwner
@@ -11,18 +12,19 @@ from .serializers import ProjectSerializer, ServiceRequestSerializer
 class ProjectViewSet(ModelViewSet):
     serializer_class = ProjectSerializer
     permission_classes = [IsAuthenticated, IsAdminOrClientOwner]
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
     filterset_fields = ("status", "site_type", "client")
     search_fields = ("name", "domain", "client__company_name")
     ordering_fields = ("created_at", "due_date", "status", "name")
 
     def get_queryset(self):
-        queryset = Project.objects.select_related("client", "plan", "client__user")
+        queryset = Project.objects.select_related("client", "plan", "client__user").prefetch_related("attachments")
         if self.request.user.role == "admin":
             return queryset
         return queryset.filter(client__user=self.request.user)
 
     def get_permissions(self):
-        if self.action in {"create", "update", "partial_update", "destroy"}:
+        if self.action in {"update", "partial_update", "destroy"}:
             return [IsAdmin()]
         return super().get_permissions()
 

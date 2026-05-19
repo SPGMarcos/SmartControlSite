@@ -4,12 +4,21 @@ import { useEffect, useMemo, useState } from "react";
 import AppShell from "../components/AppShell.jsx";
 import StatCard from "../components/StatCard.jsx";
 import StatusBadge from "../components/StatusBadge.jsx";
-import { createPlan, getAdminPayments, getAdminProjects, getAdminRequests, getClients, getPlans } from "../services/adminService.js";
+import { createPlan, getAdminPayments, getAdminProjects, getAdminRequests, getClients, getPlans, updateProject } from "../services/adminService.js";
 import { cleanText } from "../utils/security.js";
 
 function asArray(value) {
   return Array.isArray(value) ? value : value?.results || [];
 }
+
+const projectStatuses = [
+  ["awaiting_analysis", "Aguardando analise"],
+  ["quote_sent", "Orcamento enviado"],
+  ["payment_pending", "Pagamento pendente"],
+  ["in_development", "Em desenvolvimento"],
+  ["review", "Revisao"],
+  ["completed", "Concluido"]
+];
 
 export default function AdminPage() {
   const [clients, setClients] = useState([]);
@@ -24,7 +33,9 @@ export default function AdminPage() {
     setup_price: "",
     monthly_price: "",
     description: "",
-    features: ""
+    features: "",
+    stripe_setup_price_id: "",
+    stripe_monthly_price_id: ""
   });
 
   const load = async () => {
@@ -67,10 +78,35 @@ export default function AdminPage() {
       setup_price: planForm.setup_price || 0,
       monthly_price: planForm.monthly_price || 0,
       features,
-      is_active: true
+      is_active: true,
+      stripe_setup_price_id: cleanText(planForm.stripe_setup_price_id),
+      stripe_monthly_price_id: cleanText(planForm.stripe_monthly_price_id)
     });
-    setPlanForm({ name: "", slug: "", setup_price: "", monthly_price: "", description: "", features: "" });
+    setPlanForm({ name: "", slug: "", setup_price: "", monthly_price: "", description: "", features: "", stripe_setup_price_id: "", stripe_monthly_price_id: "" });
     await load();
+  };
+
+  const changeProjectStatus = async (project, status) => {
+    setError("");
+    try {
+      await updateProject(project.id, { status });
+      await load();
+    } catch (item) {
+      setError(item.message);
+    }
+  };
+
+  const changeProjectPlan = async (project, planId) => {
+    setError("");
+    try {
+      await updateProject(project.id, {
+        plan_id: planId ? Number(planId) : null,
+        status: planId && project.status === "awaiting_analysis" ? "quote_sent" : project.status
+      });
+      await load();
+    } catch (item) {
+      setError(item.message);
+    }
   };
 
   return (
@@ -140,6 +176,14 @@ export default function AdminPage() {
               Recursos
               <textarea value={planForm.features} onChange={(event) => setPlanForm({ ...planForm, features: event.target.value })} placeholder="Um recurso por linha" />
             </label>
+            <label>
+              Stripe setup price
+              <input value={planForm.stripe_setup_price_id} onChange={(event) => setPlanForm({ ...planForm, stripe_setup_price_id: event.target.value })} placeholder="price_..." />
+            </label>
+            <label>
+              Stripe mensal price
+              <input value={planForm.stripe_monthly_price_id} onChange={(event) => setPlanForm({ ...planForm, stripe_monthly_price_id: event.target.value })} placeholder="price_..." />
+            </label>
             <button className="primary-button full" type="submit">
               <Plus size={18} />
               Criar plano
@@ -153,12 +197,29 @@ export default function AdminPage() {
           </div>
           <div className="table-like">
             {projects.slice(0, 8).map((project) => (
-              <div className="table-row" key={project.id}>
+              <div className="table-row align-start" key={project.id}>
                 <div>
                   <strong>{project.name}</strong>
-                  <span>{project.client_company}</span>
+                  <span>{project.client_company} {project.plan_name ? `- ${project.plan_name}` : ""}</span>
                 </div>
-                <StatusBadge value={project.status} />
+                <div className="row-actions">
+                  <select className="mini-select" value={project.status} onChange={(event) => changeProjectStatus(project, event.target.value)}>
+                    {projectStatuses.map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                  <select className="mini-select" value={project.plan_id || ""} onChange={(event) => changeProjectPlan(project, event.target.value)}>
+                    <option value="">Sem plano</option>
+                    {plans.map((plan) => (
+                      <option key={plan.id} value={plan.id}>
+                        {plan.name}
+                      </option>
+                    ))}
+                  </select>
+                  <StatusBadge value={project.status} />
+                </div>
               </div>
             ))}
             {projects.length === 0 && <p className="empty">Nenhum projeto cadastrado.</p>}
