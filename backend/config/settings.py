@@ -4,6 +4,7 @@ from pathlib import Path
 
 from corsheaders.defaults import default_headers
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 
@@ -111,12 +112,16 @@ DEFAULT_DATABASE_URL = (
     f"{env('POSTGRES_PORT', '5432')}/"
     f"{env('POSTGRES_DB', 'smartcontrol_sites')}"
 )
+DATABASE_URL = env("DATABASE_URL", "")
+if not DEBUG and not DATABASE_URL:
+    raise ImproperlyConfigured("DATABASE_URL must be configured in production.")
+
 DATABASES = {
     "default": dj_database_url.config(
-        default=os.environ.get("DATABASE_URL"),
+        default=DATABASE_URL or DEFAULT_DATABASE_URL,
         conn_max_age=600,
         conn_health_checks=True,
-        ssl_require=True,
+        ssl_require=not DEBUG,
     )
 }
 
