@@ -11,8 +11,10 @@ const API_BASE_URL = normalizeApiUrl(
     getDefaultApiUrl()
 );
 const ACCESS_TOKEN_KEY = "smartcontrol_access";
+const REFRESH_TOKEN_KEY = "smartcontrol_refresh";
 
 let accessToken = sessionStorage.getItem(ACCESS_TOKEN_KEY);
+let refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
 let csrfReady = false;
 let csrfToken = "";
 
@@ -33,6 +35,10 @@ export function setAccessToken(token) {
 
 export function getAccessToken() {
   return accessToken;
+}
+
+export function getRefreshToken() {
+  return refreshToken;
 }
 
 function getCookie(name) {
@@ -56,6 +62,15 @@ async function ensureCsrf() {
   csrfReady = true;
 }
 
+export function setRefreshToken(token) {
+  refreshToken = token || null;
+  if (token) {
+    localStorage.setItem(REFRESH_TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+  }
+}
+
 function getCsrfToken() {
   return csrfToken || decodeURIComponent(getCookie("csrftoken") || "");
 }
@@ -68,16 +83,21 @@ async function refreshAccessToken() {
     headers: {
       "Content-Type": "application/json",
       "X-CSRFToken": getCsrfToken()
-    }
+    },
+    body: JSON.stringify(refreshToken ? { refresh: refreshToken } : {})
   });
 
   if (!response.ok) {
     setAccessToken(null);
+    setRefreshToken(null);
     throw new Error("Sessao expirada.");
   }
 
   const data = await response.json();
   setAccessToken(data.access);
+  if (data.refresh) {
+    setRefreshToken(data.refresh);
+  }
   return data.access;
 }
 

@@ -225,9 +225,9 @@ CORS_ALLOWED_ORIGINS = unique(
     + DEFAULT_GITHUB_PAGES_ORIGINS
 )
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_HEADERS = list(default_headers) + [
+CORS_ALLOW_HEADERS = unique(list(default_headers) + [
     "x-csrftoken",
-]
+])
 CSRF_TRUSTED_ORIGINS = unique(
     [strip_trailing_slash(item) for item in env("DJANGO_CSRF_TRUSTED_ORIGINS", "", list)]
     + CORS_ALLOWED_ORIGINS
@@ -298,11 +298,18 @@ CSP_SCRIPT_SRC = ("'self'", "https://js.stripe.com")
 CSP_STYLE_SRC = ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com")
 CSP_FONT_SRC = ("'self'", "https://fonts.gstatic.com")
 CSP_IMG_SRC = ("'self'", "data:", "https:")
-CSP_CONNECT_SRC = (
-    "'self'",
-    "https://smartcontrolsite.onrender.com",
-    "https://spgmarcos.github.io",
-    "https://api.stripe.com",
+CSP_CONNECT_SRC = tuple(
+    unique(
+        [
+            "'self'",
+            FRONTEND_ORIGIN,
+            *FRONTEND_ORIGINS,
+            *DEFAULT_RENDER_ORIGINS,
+            *DEFAULT_GITHUB_PAGES_ORIGINS,
+            "https://smartcontrolsite.onrender.com",
+            "https://api.stripe.com",
+        ]
+    )
 )
 CSP_FRAME_SRC = ("'self'", "https://js.stripe.com", "https://hooks.stripe.com")
 CSP_BASE_URI = ("'self'",)

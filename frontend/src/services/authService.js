@@ -1,4 +1,4 @@
-import { apiFetch, setAccessToken } from "./api.js";
+import { apiFetch, getRefreshToken, setAccessToken, setRefreshToken } from "./api.js";
 
 export async function login(credentials) {
   const data = await apiFetch("/auth/login/", {
@@ -7,6 +7,7 @@ export async function login(credentials) {
     body: credentials
   });
   setAccessToken(data.access);
+  setRefreshToken(data.refresh);
   return data.user;
 }
 
@@ -21,9 +22,10 @@ export async function register(payload) {
 export async function logout() {
   await apiFetch("/auth/logout/", {
     method: "POST",
-    body: {}
+    body: getRefreshToken() ? { refresh: getRefreshToken() } : {}
   }).catch(() => null);
   setAccessToken(null);
+  setRefreshToken(null);
 }
 
 export async function getMe() {

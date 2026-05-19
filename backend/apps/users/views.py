@@ -74,6 +74,7 @@ class LoginView(GenericAPIView):
         response = Response(
             {
                 "access": str(refresh.access_token),
+                "refresh": str(refresh),
                 "user": UserSerializer(user).data,
             }
         )
@@ -88,10 +89,16 @@ class CookieTokenRefreshView(GenericAPIView):
 
     def post(self, request):
         refresh_token = request.COOKIES.get(settings.JWT_REFRESH_COOKIE_NAME) or request.data.get("refresh")
+        if not refresh_token:
+            return Response({"detail": "Refresh token ausente."}, status=status.HTTP_401_UNAUTHORIZED)
         serializer = self.get_serializer(data={"refresh": refresh_token})
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            response = Response({"detail": "Sessao expirada."}, status=status.HTTP_401_UNAUTHORIZED)
+            clear_refresh_cookie(response)
+            return response
         response = Response({"access": serializer.validated_data["access"]})
         if serializer.validated_data.get("refresh"):
+            response.data["refresh"] = serializer.validated_data["refresh"]
             set_refresh_cookie(response, serializer.validated_data["refresh"])
         return response
 
