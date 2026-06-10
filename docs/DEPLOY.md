@@ -1,10 +1,11 @@
-# Deploy GitHub + Render
+# Deploy GitHub + Render + Supabase
 
 Este projeto esta preparado para:
 
-- Frontend React no GitHub Pages.
-- Backend Django REST no Render gratuito.
-- PostgreSQL gerenciado pelo Render.
+- Frontend React no GitHub Pages ou Render.
+- Backend Django REST no Render.
+- Auth e PostgreSQL gerenciado pelo Supabase.
+- Pagamentos e webhooks pelo Stripe.
 
 ## URLs esperadas
 
@@ -12,108 +13,96 @@ Este projeto esta preparado para:
 - Backend: `https://smartcontrolsite.onrender.com/api`
 - Health check backend: `https://smartcontrolsite.onrender.com/api/health/`
 
-Se o Render mudar o subdominio do backend, atualize:
+## Supabase
 
-- Variavel do GitHub Actions: `VITE_API_URL`
-- Variaveis do Render: `DJANGO_ALLOWED_HOSTS`, `STRIPE_SUCCESS_URL`, `STRIPE_CANCEL_URL`
-- O proprio `render.yaml`, se quiser manter tudo documentado no repo
+1. Crie um projeto no Supabase.
+2. Copie `Project URL`, `anon public key`, `service_role key` e `JWT secret`.
+3. Copie a connection string Pooler/Transaction ou Direct para `SUPABASE_DATABASE_URL`.
+4. Execute `docs/SUPABASE_SCHEMA.sql` no SQL Editor.
+5. Configure o redirect de recuperacao de senha para:
 
-## Frontend no GitHub Pages
+```text
+https://spgmarcos.github.io/SmartControlSite/reset-password
+```
 
-O workflow esta em `.github/workflows/frontend-pages.yml`.
+## Backend no Render
 
-Tambem existe uma copia estatica do build na raiz do repositorio e em `docs/`. Isso evita 404 quando o GitHub Pages estiver configurado no modo classico `Deploy from a branch`.
+O `render.yaml` cria apenas o web service da API. O banco nao e mais criado no Render.
 
-Passos no GitHub:
+Secrets obrigatorios:
 
-1. Va em `Settings > Pages`.
-2. Use uma destas opcoes:
-   - `Deploy from a branch` com `main` e `/root`.
-   - `Deploy from a branch` com `main` e `/docs`.
-   - `GitHub Actions`, usando o workflow ja incluido.
-3. Opcional: em `Settings > Secrets and variables > Actions > Variables`, crie:
+```text
+SUPABASE_URL
+SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY
+SUPABASE_JWT_SECRET
+SUPABASE_DATABASE_URL
+STRIPE_SECRET_KEY
+STRIPE_WEBHOOK_SECRET
+```
+
+Variaveis de URL:
+
+```text
+FRONTEND_URL=https://spgmarcos.github.io/SmartControlSite
+FRONTEND_ORIGIN=https://spgmarcos.github.io
+SUPABASE_PASSWORD_RESET_REDIRECT_URL=https://spgmarcos.github.io/SmartControlSite/reset-password
+STRIPE_SUCCESS_URL=https://spgmarcos.github.io/SmartControlSite/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}
+STRIPE_CANCEL_URL=https://spgmarcos.github.io/SmartControlSite/billing?checkout=cancel
+STRIPE_PORTAL_RETURN_URL=https://spgmarcos.github.io/SmartControlSite/billing
+```
+
+O build executa:
+
+```bash
+pip install -r requirements.txt
+python manage.py collectstatic --no-input
+python manage.py migrate --no-input
+python manage.py bootstrap_credentials
+```
+
+## Frontend
+
+Configure:
 
 ```text
 VITE_API_URL=https://smartcontrolsite.onrender.com/api
+VITE_APP_BASE_PATH=/SmartControlSite/
+VITE_SUPABASE_URL=<project-url>
+VITE_SUPABASE_ANON_KEY=<anon-key>
 ```
 
-4. Faca push na branch `main`.
-
-O workflow executa:
+Depois rode:
 
 ```bash
 npm ci
 npm run build
 ```
 
-Depois publica `frontend/dist` no GitHub Pages.
-
-## Backend no Render
-
-O arquivo `render.yaml` cria:
-
-- Web service Python gratuito: `smartcontrol-sites-api`
-- PostgreSQL gratuito conectado pela referencia `smartcontrol-sites-db`
-
-Passos no Render:
-
-1. Abra `Blueprints`.
-2. Clique em `New Blueprint Instance`.
-3. Selecione o repo `SPGMarcos/SmartControlSite`.
-4. Aplique o blueprint.
-5. Preencha os secrets solicitados:
-
-```text
-STRIPE_SECRET_KEY
-STRIPE_WEBHOOK_SECRET
-```
-
-Para o login administrativo inicial, configure tambem no Render:
-
-```text
-SMARTCONTROL_ADMIN_EMAIL
-SMARTCONTROL_ADMIN_PASSWORD
-```
-
-No proximo deploy, o backend executa `python manage.py bootstrap_credentials` depois das migrations e cria ou atualiza esse admin com a senha mais recente configurada no ambiente.
-O comando tambem aceita os aliases `ADMIN_EMAIL`/`ADMIN_PASSWORD`, `DJANGO_SUPERUSER_EMAIL`/`DJANGO_SUPERUSER_PASSWORD`, `SUPERUSER_EMAIL`/`SUPERUSER_PASSWORD` e `RENDER_ADMIN_EMAIL`/`RENDER_ADMIN_PASSWORD`.
-
-O Render usa:
-
-```bash
-bash build.sh
-gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
-```
-
-O build instala dependencias, coleta estaticos e executa migrations. Essa abordagem e compativel com o plano gratuito do Render, que nao aceita `preDeployCommand`.
-
-## Criar admin em producao
-
-Depois do primeiro deploy, abra o Shell do servico no Render e rode:
-
-```bash
-python manage.py createsuperuser
-```
-
 ## Stripe
 
-No dashboard Stripe, configure o webhook:
+Webhook:
 
 ```text
 https://smartcontrolsite.onrender.com/api/billing/webhook/stripe/
 ```
 
-Eventos usados:
+Eventos:
 
 - `checkout.session.completed`
-- `invoice.payment_succeeded`
-- `invoice.payment_failed`
 - `customer.subscription.created`
 - `customer.subscription.updated`
 - `customer.subscription.deleted`
+- `invoice.paid`
+- `invoice.payment_failed`
+- `invoice.payment_succeeded`
 
-## Observacoes do plano gratuito
+## Migracao do banco antigo
 
-- O backend pode dormir quando ficar sem trafego.
-- A primeira chamada depois de inatividade pode demorar.
-- Para producao comercial real, migre para plano pago antes de vender em escala.
+Use `docs/SUPABASE_MIGRATION.md`. Depois da importacao, rode:
+
+```bash
+python manage.py migrate
+```
+
+Valide cadastro, login, checkout, webhooks e RLS antes de desligar qualquer recurso antigo.

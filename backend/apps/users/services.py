@@ -1,17 +1,11 @@
 import logging
 
-from django.conf import settings
-from django.contrib.auth import get_user_model
-from django.contrib.auth.tokens import default_token_generator
-from django.utils.encoding import force_bytes
-from django.utils.http import urlsafe_base64_encode
-
 from apps.core.services import get_client_ip
+from apps.lib.supabase.client import SupabaseAuthClient
 
 from .models import AuthLog
 
 logger = logging.getLogger(__name__)
-User = get_user_model()
 
 
 class AuthLogService:
@@ -34,12 +28,8 @@ class AuthLogService:
 class PasswordResetService:
     @staticmethod
     def request_reset(email):
-        user = User.objects.filter(email__iexact=email, is_active=True).first()
-        if not user:
-            return
-
-        uid = urlsafe_base64_encode(force_bytes(user.pk))
-        token = default_token_generator.make_token(user)
-        reset_url = f"{settings.FRONTEND_URL}/reset-password?uid={uid}&token={token}"
-        logger.info("Password reset requested for user_id=%s reset_url=%s", user.pk, reset_url if settings.DEBUG else "[redacted]")
-        # Hook real email delivery here. Keep the API response generic to avoid enumeration.
+        try:
+            SupabaseAuthClient().request_password_reset(email=email)
+        except Exception:
+            logger.exception("Failed to request Supabase password reset for email=%s", email)
+        # Keep the API response generic to avoid enumeration.

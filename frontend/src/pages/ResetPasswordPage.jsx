@@ -3,14 +3,17 @@ import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import AuthPanel from "../components/AuthPanel.jsx";
+import { supabase } from "../lib/supabase/client.js";
 import { confirmPasswordReset, requestPasswordReset } from "../services/authService.js";
 import { cleanText, isStrongEnoughPassword } from "../utils/security.js";
 
 export default function ResetPasswordPage() {
   const [params] = useSearchParams();
-  const uid = params.get("uid");
-  const token = params.get("token");
-  const confirming = useMemo(() => Boolean(uid && token), [uid, token]);
+  const accessToken = useMemo(() => {
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    return hashParams.get("access_token") || params.get("access_token");
+  }, [params]);
+  const confirming = useMemo(() => Boolean(accessToken), [accessToken]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -26,7 +29,8 @@ export default function ResetPasswordPage() {
           setError("Use uma senha com pelo menos 10 caracteres.");
           return;
         }
-        await confirmPasswordReset({ uid, token, new_password: password });
+        const { data } = await supabase.auth.getSession();
+        await confirmPasswordReset({ access_token: accessToken || data.session?.access_token, new_password: password });
         setMessage("Senha atualizada. Voce ja pode entrar.");
       } else {
         await requestPasswordReset(cleanText(email));

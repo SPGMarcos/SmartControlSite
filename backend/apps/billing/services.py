@@ -150,12 +150,14 @@ class StripeBillingService:
         if mode == "payment":
             payment = Payment.objects.create(
                 client=client,
+                user=client.user,
                 project=project,
                 kind=kind,
                 status=Payment.Status.PENDING,
                 amount=amount,
                 currency="BRL",
                 stripe_checkout_session_id=session["id"],
+                stripe_payment_intent=session.get("payment_intent"),
                 metadata={"plan_id": plan.id, "installments": installments or None},
             )
             _touch_project_status(project, Project.Status.PAYMENT_PENDING)
@@ -239,7 +241,7 @@ class StripeWebhookService:
             return StripeWebhookService._payment_intent(data, Payment.Status.PAID)
         if event_type == "payment_intent.payment_failed":
             return StripeWebhookService._payment_intent(data, Payment.Status.FAILED)
-        if event_type == "invoice.payment_succeeded":
+        if event_type in {"invoice.paid", "invoice.payment_succeeded"}:
             return StripeWebhookService._invoice_payment(data, Payment.Status.PAID)
         if event_type == "invoice.payment_failed":
             return StripeWebhookService._invoice_payment(data, Payment.Status.FAILED)
@@ -267,9 +269,12 @@ class StripeWebhookService:
                 stripe_subscription_id=subscription_id,
                 defaults={
                     "client": client,
+                    "user": client.user,
                     "plan": plan,
                     "project": project,
                     "status": Subscription.Status.PENDING,
+                    "plano": plan.slug or plan.name,
+                    "stripe_customer_id": session.get("customer") or client.stripe_customer_id,
                 },
             )
             return {"processed": "checkout.session.completed", "client": client, "project": project, "subscription": subscription}
@@ -310,20 +315,23 @@ class StripeWebhookService:
         if not payment:
             payment = Payment.objects.create(
                 client=client,
+                user=client.user,
                 project=project,
                 kind=metadata.get("kind") or Payment.Kind.ONE_TIME,
                 amount=_decimal_from_cents(payment_intent.get("amount_received") or payment_intent.get("amount")),
                 currency=_currency(payment_intent.get("currency")),
                 stripe_payment_intent_id=payment_intent.get("id"),
+                stripe_payment_intent=payment_intent.get("id"),
                 metadata={"plan_id": plan.id if plan else None},
             )
 
         payment.status = status
         payment.stripe_payment_intent_id = payment_intent.get("id")
+        payment.stripe_payment_intent = payment_intent.get("id")
         payment.amount = _decimal_from_cents(payment_intent.get("amount_received") or payment_intent.get("amount"))
         payment.currency = _currency(payment_intent.get("currency"))
         payment.paid_at = django_timezone.now() if status == Payment.Status.PAID else None
-        payment.save(update_fields=["status", "stripe_payment_intent_id", "amount", "currency", "paid_at", "updated_at"])
+        payment.save(update_fields=["status", "stripe_payment_intent_id", "stripe_payment_intent", "amount", "currency", "paid_at", "updated_at"])
 
         _touch_project_status(project, Project.Status.IN_DEVELOPMENT if status == Payment.Status.PAID else Project.Status.PAYMENT_PENDING)
         return {"processed": "payment_intent", "client": client, "project": project, "payment": payment, "amount": payment.amount, "currency": payment.currency}
@@ -347,6 +355,7 @@ class StripeWebhookService:
             stripe_invoice_id=invoice.get("id"),
             defaults={
                 "client": client,
+                "user": client.user,
                 "subscription": subscription,
                 "project": project,
                 "kind": Payment.Kind.SUBSCRIPTION,
@@ -379,9 +388,12 @@ class StripeWebhookService:
             stripe_subscription_id=stripe_subscription.get("id"),
             defaults={
                 "client": client,
+                "user": client.user,
                 "plan": plan,
                 "project": project,
                 "status": status,
+                "plano": plan.slug or plan.name,
+                "stripe_customer_id": stripe_subscription.get("customer") or client.stripe_customer_id,
                 "current_period_start": _stripe_ts(stripe_subscription.get("current_period_start")),
                 "current_period_end": _stripe_ts(stripe_subscription.get("current_period_end")),
                 "cancel_at_period_end": bool(stripe_subscription.get("cancel_at_period_end")),
@@ -407,6 +419,7 @@ class StripeWebhookService:
 
         values = {
             "client": client,
+            "user": client.user,
             "project": project,
             "kind": session.get("metadata", {}).get("kind") or Payment.Kind.ONE_TIME,
             "status": status,
@@ -414,6 +427,7 @@ class StripeWebhookService:
             "currency": _currency(session.get("currency")),
             "stripe_checkout_session_id": session.get("id"),
             "stripe_payment_intent_id": session.get("payment_intent"),
+            "stripe_payment_intent": session.get("payment_intent"),
             "paid_at": _stripe_ts(session.get("created")) if status == Payment.Status.PAID else None,
             "metadata": {"plan_id": plan.id},
         }

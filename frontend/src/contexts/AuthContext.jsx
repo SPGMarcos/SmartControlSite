@@ -1,6 +1,7 @@
 import { createContext, useCallback, useEffect, useMemo, useState } from "react";
 
 import { getAccessToken, refreshAccessToken, setAccessToken } from "../services/api.js";
+import { supabase } from "../lib/supabase/client.js";
 import * as authService from "../services/authService.js";
 
 export const AuthContext = createContext(null);
@@ -28,6 +29,13 @@ export function AuthProvider({ children }) {
     loadUser();
   }, [loadUser]);
 
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAccessToken(session?.access_token || null);
+    });
+    return () => data.subscription.unsubscribe();
+  }, []);
+
   const login = async (payload) => {
     const loggedUser = await authService.login(payload);
     setUser(loggedUser);
@@ -35,8 +43,9 @@ export function AuthProvider({ children }) {
   };
 
   const register = async (payload) => {
-    await authService.register(payload);
-    return login({ email: payload.email, password: payload.password });
+    const registeredUser = await authService.register(payload);
+    setUser(registeredUser);
+    return registeredUser;
   };
 
   const logout = async () => {

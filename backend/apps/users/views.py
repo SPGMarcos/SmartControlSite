@@ -4,11 +4,9 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.serializers import TokenRefreshSerializer
-from rest_framework_simplejwt.exceptions import TokenError
-from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.core.services import audit
+from apps.lib.supabase.client import SupabaseAuthClient
 
 from .serializers import (
     LoginSerializer,
@@ -51,9 +49,22 @@ class RegisterView(GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+        session = SupabaseAuthClient().sign_in_with_password(
+            email=serializer.validated_data["email"],
+            password=serializer.validated_data["password"],
+        )
         AuthLogService.record(request, "register", user=user, success=True)
         audit(user, "user.register", request=request, target=user)
-        return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+        response = Response(
+            {
+                "access": session["access_token"],
+                "refresh": session["refresh_token"],
+                "user": UserSerializer(user).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+        set_refresh_cookie(response, session["refresh_token"])
+        return response
 
 
 class LoginView(GenericAPIView):
@@ -68,22 +79,21 @@ class LoginView(GenericAPIView):
             return Response({"detail": "Credenciais invalidas."}, status=status.HTTP_401_UNAUTHORIZED)
 
         user = serializer.validated_data["user"]
-        refresh = RefreshToken.for_user(user)
+        session = serializer.validated_data["session"]
         AuthLogService.record(request, "login_success", user=user, success=True)
         audit(user, "auth.login", request=request, target=user)
         response = Response(
             {
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
+                "access": session["access_token"],
+                "refresh": session["refresh_token"],
                 "user": UserSerializer(user).data,
             }
         )
-        set_refresh_cookie(response, refresh)
+        set_refresh_cookie(response, session["refresh_token"])
         return response
 
 
 class CookieTokenRefreshView(GenericAPIView):
-    serializer_class = TokenRefreshSerializer
     permission_classes = [AllowAny]
     throttle_scope = "auth"
 
@@ -91,15 +101,14 @@ class CookieTokenRefreshView(GenericAPIView):
         refresh_token = request.COOKIES.get(settings.JWT_REFRESH_COOKIE_NAME) or request.data.get("refresh")
         if not refresh_token:
             return Response({"detail": "Refresh token ausente."}, status=status.HTTP_401_UNAUTHORIZED)
-        serializer = self.get_serializer(data={"refresh": refresh_token})
-        if not serializer.is_valid():
+        try:
+            session = SupabaseAuthClient().refresh_session(refresh_token=refresh_token)
+        except Exception:
             response = Response({"detail": "Sessao expirada."}, status=status.HTTP_401_UNAUTHORIZED)
             clear_refresh_cookie(response)
             return response
-        response = Response({"access": serializer.validated_data["access"]})
-        if serializer.validated_data.get("refresh"):
-            response.data["refresh"] = serializer.validated_data["refresh"]
-            set_refresh_cookie(response, serializer.validated_data["refresh"])
+        response = Response({"access": session["access_token"], "refresh": session["refresh_token"]})
+        set_refresh_cookie(response, session["refresh_token"])
         return response
 
 
@@ -111,12 +120,9 @@ class LogoutView(GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         refresh_token = serializer.validated_data.get("refresh") or request.COOKIES.get(settings.JWT_REFRESH_COOKIE_NAME)
-        if refresh_token:
-            try:
-                token = RefreshToken(refresh_token)
-                token.blacklist()
-            except TokenError:
-                pass
+        access_token = serializer.validated_data.get("access") or request.auth
+        if access_token:
+            SupabaseAuthClient().sign_out(access_token=access_token)
         AuthLogService.record(request, "logout", user=request.user, success=True)
         audit(request.user, "auth.logout", request=request, target=request.user)
         response = Response(status=status.HTTP_204_NO_CONTENT)
@@ -153,9 +159,9 @@ class PasswordResetConfirmView(GenericAPIView):
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data["user"]
-        user.set_password(serializer.validated_data["new_password"])
-        user.save(update_fields=["password", "updated_at"])
-        AuthLogService.record(request, "password_reset_confirmed", user=user, success=True)
-        audit(user, "auth.password_reset", request=request, target=user)
+        SupabaseAuthClient().update_password(
+            access_token=serializer.validated_data["access_token"],
+            new_password=serializer.validated_data["new_password"],
+        )
+        AuthLogService.record(request, "password_reset_confirmed", success=True)
         return Response({"detail": "Senha atualizada com sucesso."})

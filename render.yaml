@@ -26,9 +26,6 @@ services:
       - key: DJANGO_SECRET_KEY
         generateValue: true
 
-      - key: JWT_SECRET_KEY
-        generateValue: true
-
       - key: SMARTCONTROL_ADMIN_EMAIL
         sync: false
 
@@ -41,10 +38,23 @@ services:
       - key: SMARTCONTROL_ADMIN_LAST_NAME
         value: SmartControl
 
-      - key: DATABASE_URL
-        fromDatabase:
-          name: smartcontrol-sites-db
-          property: connectionString
+      - key: SUPABASE_URL
+        sync: false
+
+      - key: SUPABASE_ANON_KEY
+        sync: false
+
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+
+      - key: SUPABASE_DATABASE_URL
+        sync: false
+
+      - key: SUPABASE_PASSWORD_RESET_REDIRECT_URL
+        value: https://spgmarcos.github.io/SmartControlSite/reset-password
 
       - key: DJANGO_ALLOWED_HOSTS
         value: smartcontrolsite.onrender.com
@@ -109,11 +119,9 @@ services:
       - key: VITE_APP_BASE_PATH
         value: /SmartControlSite/
 
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false
       - key: RENDER_EXTERNAL_HOSTNAME
         value: smartcontrolsite.onrender.com
-
-databases:
-  - name: smartcontrol-sites-db
-    plan: free
-    databaseName: smartcontrol_sites
-    user: smartcontrol

@@ -1,10 +1,8 @@
-from datetime import timedelta
 import os
 from pathlib import Path
+from urllib.parse import parse_qsl, urlparse, unquote
 
 from corsheaders.defaults import default_headers
-import dj_database_url
-from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 
@@ -60,7 +58,6 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
-    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     "django_filters",
     "csp",
@@ -105,14 +102,37 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-DATABASES = {
-    "default": dj_database_url.config(
-        default=os.environ.get("DATABASE_URL"),
-        conn_max_age=600,
-        conn_health_checks=True,
-        ssl_require=True,
-    )
-}
+def database_from_supabase_env():
+    database_url = env("SUPABASE_DATABASE_URL", "")
+    if database_url:
+        parsed = urlparse(database_url)
+        query = dict(parse_qsl(parsed.query))
+        return {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": unquote(parsed.path.lstrip("/")),
+            "USER": unquote(parsed.username or ""),
+            "PASSWORD": unquote(parsed.password or ""),
+            "HOST": parsed.hostname or "",
+            "PORT": parsed.port or 5432,
+            "CONN_MAX_AGE": env("SUPABASE_DB_CONN_MAX_AGE", 600, int),
+            "CONN_HEALTH_CHECKS": True,
+            "OPTIONS": {"sslmode": query.get("sslmode", "require")},
+        }
+
+    return {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": env("SUPABASE_DB_NAME", "postgres"),
+        "USER": env("SUPABASE_DB_USER", "postgres"),
+        "PASSWORD": env("SUPABASE_DB_PASSWORD", ""),
+        "HOST": env("SUPABASE_DB_HOST", "localhost"),
+        "PORT": env("SUPABASE_DB_PORT", 5432, int),
+        "CONN_MAX_AGE": env("SUPABASE_DB_CONN_MAX_AGE", 600, int),
+        "CONN_HEALTH_CHECKS": True,
+        "OPTIONS": {"sslmode": env("SUPABASE_DB_SSLMODE", "require")},
+    }
+
+
+DATABASES = {"default": database_from_supabase_env()}
 
 AUTH_USER_MODEL = "users.User"
 
@@ -152,7 +172,7 @@ STORAGES = {
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "apps.lib.auth.authentication.SupabaseJWTAuthentication",
     ),
 
     "DEFAULT_RENDERER_CLASSES": (
@@ -185,16 +205,12 @@ REST_FRAMEWORK = {
     },
 }
 
-SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
-    "ROTATE_REFRESH_TOKENS": True,
-    "BLACKLIST_AFTER_ROTATION": True,
-    "UPDATE_LAST_LOGIN": True,
-    "ALGORITHM": "HS256",
-    "SIGNING_KEY": env("JWT_SECRET_KEY", SECRET_KEY),
-    "AUTH_HEADER_TYPES": ("Bearer",),
-}
+SUPABASE_URL = strip_trailing_slash(env("SUPABASE_URL", ""))
+SUPABASE_ANON_KEY = env("SUPABASE_ANON_KEY", "")
+SUPABASE_SERVICE_ROLE_KEY = env("SUPABASE_SERVICE_ROLE_KEY", "")
+SUPABASE_JWT_SECRET = env("SUPABASE_JWT_SECRET", "")
+SUPABASE_JWT_AUDIENCE = env("SUPABASE_JWT_AUDIENCE", "authenticated")
+SUPABASE_PASSWORD_RESET_REDIRECT_URL = env("SUPABASE_PASSWORD_RESET_REDIRECT_URL", "")
 
 FRONTEND_URL = strip_trailing_slash(env("FRONTEND_URL", "http://127.0.0.1:5173"))
 FRONTEND_ORIGIN = strip_trailing_slash(env("FRONTEND_ORIGIN", FRONTEND_URL))
@@ -296,6 +312,7 @@ CSP_CONNECT_SRC = tuple(
             *FRONTEND_ORIGINS,
             *DEFAULT_RENDER_ORIGINS,
             *DEFAULT_GITHUB_PAGES_ORIGINS,
+            SUPABASE_URL,
             "https://smartcontrolsite.onrender.com",
             "https://api.stripe.com",
         ]

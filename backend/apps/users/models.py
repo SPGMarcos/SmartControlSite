@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
+from uuid import uuid4
 
 from apps.core.models import TimeStampedModel
 
@@ -36,6 +37,7 @@ class User(AbstractUser, TimeStampedModel):
 
     username = None
     email = models.EmailField(unique=True)
+    supabase_user_id = models.UUIDField(unique=True, null=True, blank=True)
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.CLIENT)
 
     USERNAME_FIELD = "email"
@@ -46,9 +48,29 @@ class User(AbstractUser, TimeStampedModel):
     class Meta:
         db_table = "users"
         indexes = [
+            models.Index(fields=["supabase_user_id"]),
             models.Index(fields=["role"]),
             models.Index(fields=["is_active"]),
         ]
+
+    def __str__(self):
+        return self.email
+
+
+class Profile(TimeStampedModel):
+    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
+    email = models.EmailField(unique=True)
+    nome = models.CharField(max_length=180)
+    plano = models.CharField(max_length=40, default="client")
+    creditos = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = "profiles"
+        indexes = [
+            models.Index(fields=["email"]),
+            models.Index(fields=["plano"]),
+        ]
+        ordering = ["nome"]
 
     def __str__(self):
         return self.email

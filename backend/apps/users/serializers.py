@@ -1,13 +1,12 @@
-from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
-from django.contrib.auth.tokens import default_token_generator
 from django.db import transaction
-from django.utils.encoding import force_str
-from django.utils.http import urlsafe_base64_decode
 from rest_framework import serializers
 
 from apps.core.validators import sanitize_text
 from apps.clients.models import Client
+from apps.lib.supabase.client import SupabaseAuthClient
+from apps.repositories.profiles import ProfileRepository
 
 User = get_user_model()
 
@@ -35,17 +34,38 @@ class RegisterSerializer(serializers.Serializer):
     def validate_email(self, value):
         email = value.lower().strip()
         if User.objects.filter(email__iexact=email).exists():
-            raise serializers.ValidationError("Nao foi possivel concluir o cadastro.")
+            raise serializers.ValidationError("Este email ja esta cadastrado. Acesse com login ou recupere sua senha.")
         return email
 
     @transaction.atomic
     def create(self, validated_data):
-        user = User.objects.create_user(
+        first_name = sanitize_text(validated_data["first_name"])
+        last_name = sanitize_text(validated_data.get("last_name", ""))
+        full_name = " ".join(item for item in [first_name, last_name] if item).strip()
+        supabase_user = SupabaseAuthClient().create_user(
             email=validated_data["email"],
             password=validated_data["password"],
+            metadata={
+                "first_name": first_name,
+                "last_name": last_name,
+                "company_name": sanitize_text(validated_data["company_name"]),
+            },
+        )
+        supabase_user_id = supabase_user["id"]
+        user = User.objects.create_user(
+            email=validated_data["email"],
+            password=None,
             first_name=sanitize_text(validated_data["first_name"]),
             last_name=sanitize_text(validated_data.get("last_name", "")),
+            supabase_user_id=supabase_user_id,
             role=User.Role.CLIENT,
+        )
+        user.set_unusable_password()
+        user.save(update_fields=["password"])
+        ProfileRepository.upsert_from_registration(
+            supabase_user_id=supabase_user_id,
+            email=user.email,
+            nome=full_name or user.email,
         )
         Client.objects.create(
             user=user,
@@ -61,13 +81,36 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
-        request = self.context.get("request")
         email = attrs["email"].lower().strip()
-        user = authenticate(request=request, username=email, password=attrs["password"])
-        if not user or not user.is_active:
+        session = SupabaseAuthClient().sign_in_with_password(email=email, password=attrs["password"])
+        supabase_user = session.get("user") or {}
+        supabase_user_id = supabase_user.get("id")
+        user = User.objects.filter(supabase_user_id=supabase_user_id).first() or User.objects.filter(email__iexact=email).first()
+        if not user:
+            metadata = supabase_user.get("user_metadata") or {}
+            user = User.objects.create_user(
+                email=email,
+                password=None,
+                first_name=sanitize_text(metadata.get("first_name") or metadata.get("name") or ""),
+                last_name=sanitize_text(metadata.get("last_name") or ""),
+                supabase_user_id=supabase_user_id,
+                role=User.Role.CLIENT,
+            )
+            user.set_unusable_password()
+            user.save(update_fields=["password"])
+            ProfileRepository.upsert_from_registration(
+                supabase_user_id=supabase_user_id,
+                email=email,
+                nome=" ".join(item for item in [user.first_name, user.last_name] if item).strip() or email,
+            )
+        if not user.is_active:
             raise serializers.ValidationError("Credenciais invalidas.")
+        if supabase_user_id and user.supabase_user_id != supabase_user_id:
+            user.supabase_user_id = supabase_user_id
+            user.save(update_fields=["supabase_user_id", "updated_at"])
         attrs["user"] = user
         attrs["email"] = email
+        attrs["session"] = session
         return attrs
 
 
@@ -76,26 +119,14 @@ class PasswordResetRequestSerializer(serializers.Serializer):
 
 
 class PasswordResetConfirmSerializer(serializers.Serializer):
-    uid = serializers.CharField()
-    token = serializers.CharField()
+    access_token = serializers.CharField()
     new_password = serializers.CharField(write_only=True, min_length=10)
 
     def validate_new_password(self, value):
         validate_password(value)
         return value
 
-    def validate(self, attrs):
-        try:
-            user_id = force_str(urlsafe_base64_decode(attrs["uid"]))
-            user = User.objects.get(pk=user_id, is_active=True)
-        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-            raise serializers.ValidationError("Token invalido ou expirado.")
-
-        if not default_token_generator.check_token(user, attrs["token"]):
-            raise serializers.ValidationError("Token invalido ou expirado.")
-        attrs["user"] = user
-        return attrs
-
 
 class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField(required=False, allow_blank=True)
+    access = serializers.CharField(required=False, allow_blank=True)

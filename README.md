@@ -1,326 +1,133 @@
-# SmartControl Sites 🌐⚡
+# SmartControl Sites
 
-Plataforma fullstack para criação, venda, assinatura e gerenciamento de sites profissionais.
+Plataforma fullstack para criacao, venda, assinatura e gerenciamento de sites profissionais.
 
-<img width="1916" height="871" alt="image" src="https://github.com/user-attachments/assets/3c982c92-c99c-4327-9b13-972877f5e9e9" />
-
-
-## 📌 Visão Geral
-
-O **SmartControl Sites** foi desenvolvido para oferecer uma plataforma moderna de criação e gerenciamento de sites profissionais.
-
-A proposta é permitir que clientes tenham:
-
-✅ Sites profissionais  
-✅ Lojas online  
-✅ Painéis administrativos  
-✅ Gestão de produtos  
-✅ Sistema de assinaturas  
-✅ Hospedagem centralizada  
-
-Tudo isso em uma plataforma moderna, segura e escalável.
-
-
-
-# 🎯 Objetivo
-
-Criar uma plataforma SaaS que seja:
-
-- Moderna
-- Escalável
-- Segura
-- Fácil de usar
-- Automatizada
-- Preparada para múltiplos clientes
-
-
-
-# 🌐 O que a plataforma faz
-
-A plataforma permite:
-
-## 🔹 Venda de sites por assinatura
-
-- Planos recorrentes
-- Gestão de assinaturas
-- Cobrança automatizada
-- Integração Stripe
-
-## 🔹 Criação de lojas online
-
-- Gestão de produtos
-- Cadastro de clientes
-- Dashboard administrativa
-- Controle de pedidos
-
-## 🔹 Sistema de autenticação
-
-- Login seguro
-- JWT com refresh token
-- Sessões protegidas
-- Controle de permissões
-
-## 🔹 Gestão administrativa
-
-- Controle de clientes
-- Controle de sites
-- Gestão de planos
-- Administração centralizada
-
-
-
-# 🧠 Como funciona
-
-O frontend React se comunica com a API Django REST.
-
-A API gerencia:
-
-- Autenticação
-- Pagamentos
-- Usuários
-- Planos
-- Dados dos sites
-
-O PostgreSQL armazena todas as informações da plataforma.
-
-
-
-# ⚙️ Arquitetura
-
-## Fluxo principal
+## Arquitetura
 
 ```text
-Usuário
-   ↓
-Frontend React
-   ↓
-API Django REST
-   ↓
-PostgreSQL
-   ↓
-Stripe
+Usuario
+  -> Frontend React/Vite
+  -> Supabase Auth
+  -> API Django REST
+  -> PostgreSQL gerenciado pelo Supabase
+  -> Stripe
 ```
 
+O Supabase e o backend principal de identidade e persistencia. A API Django continua concentrando as regras de negocio da plataforma, validando JWTs do Supabase e atendendo projetos, pagamentos, planos, clientes e webhooks Stripe.
 
+## Tecnologias
 
-# 💻 Tecnologias utilizadas
+- Frontend: React, Vite, React Router, Supabase JS
+- Backend: Django, Django REST Framework
+- Auth: Supabase Auth
+- Banco: PostgreSQL gerenciado pelo Supabase
+- Pagamentos: Stripe
+- Deploy: Render para API/frontend e Supabase para dados/auth
 
-## Frontend
+## Variaveis de ambiente
 
-- React
-- Vite
-- JavaScript
-- HTML5
-- CSS3
+Backend:
 
-## Backend
-
-- Python
-- Django
-- Django REST Framework
-
-## Banco de dados
-
-- PostgreSQL
-
-## Pagamentos
-
-- Stripe
-
-## Autenticação
-
-- JWT
-- Refresh Token Rotativo
-
-
-
-# 🔐 Segurança implementada
-
-## 🔹 Autenticação segura
-
-- JWT com expiração curta
-- Refresh token rotativo
-- Cookies HttpOnly
-- Controle de sessão
-
-## 🔹 Proteções da aplicação
-
-- Rate limiting
-- Proteção CSRF
-- CORS configurável
-- CSP e HSTS
-- Sanitização de inputs
-
-## 🔹 Segurança de usuários
-
-- Hash de senha com Argon2
-- RBAC para admin e cliente
-- Logs de autenticação
-- Logs de ações sensíveis
-
-## 🔹 Integrações seguras
-
-- Webhook Stripe validado
-- Secrets via variáveis de ambiente
-
-
-
-# 📂 Estrutura do projeto
-
-```text
-SmartControlSite/
-
-├── backend/      → API Django REST
-├── frontend/     → Aplicação React
-└── docs/         → Arquitetura e documentação
+```env
+DJANGO_SECRET_KEY=
+DJANGO_DEBUG=False
+DJANGO_ALLOWED_HOSTS=
+DJANGO_CORS_ALLOWED_ORIGINS=
+DJANGO_CSRF_TRUSTED_ORIGINS=
+FRONTEND_URL=
+FRONTEND_ORIGIN=
+FRONTEND_ORIGINS=
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_JWT_SECRET=
+SUPABASE_DATABASE_URL=
+SUPABASE_PASSWORD_RESET_REDIRECT_URL=
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_SUCCESS_URL=
+STRIPE_CANCEL_URL=
+STRIPE_PORTAL_RETURN_URL=
 ```
 
+Frontend:
 
+```env
+VITE_API_URL=
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+```
 
-# 🚀 Rodando em desenvolvimento
+Nunca exponha `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET` ou `STRIPE_SECRET_KEY` no frontend.
 
-## Clonar o projeto
+## Autenticacao
+
+1. Cadastro chama `/api/auth/register/`.
+2. A API cria o usuario no Supabase Auth.
+3. A API cria/sincroniza `profiles`, `users` e `clients` no Postgres do Supabase.
+4. Login e refresh usam tokens nativos do Supabase.
+5. O frontend persiste a sessao com `@supabase/supabase-js`.
+6. Rotas privadas usam `Authorization: Bearer <supabase_access_token>`.
+7. A API valida o JWT com `SUPABASE_JWT_SECRET`.
+
+## Stripe para Supabase
+
+Webhooks recebidos em `/api/billing/webhook/stripe/` atualizam automaticamente:
+
+- `subscriptions`
+- `payments`
+- `transaction_logs`
+- status de projetos relacionados
+
+Eventos suportados:
+
+- `checkout.session.completed`
+- `customer.subscription.created`
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
+- `invoice.paid`
+- `invoice.payment_failed`
+
+## Banco e RLS
+
+Execute o script:
 
 ```bash
-git clone
+docs/SUPABASE_SCHEMA.sql
 ```
 
+Ele cria `profiles`, trigger de perfil para novos usuarios Supabase, colunas de associacao com Stripe e policies RLS para usuarios acessarem apenas seus proprios dados.
 
+## Desenvolvimento
 
-## Configurar variáveis de ambiente
-
-```bash
-cp backend/.env.example backend/.env
-
-cp frontend/.env.example frontend/.env
-```
-
-
-
-## Subir PostgreSQL
-
-```bash
-docker compose up -d postgres
-```
-
-
-
-## Backend
+Backend:
 
 ```bash
 cd backend
-
 python -m venv .venv
-
 .venv/Scripts/activate
-
 pip install -r requirements.txt
-
-python manage.py makemigrations
-
 python manage.py migrate
-
-python manage.py createsuperuser
-
 python manage.py runserver
 ```
 
-
-
-## Frontend
+Frontend:
 
 ```bash
 cd frontend
-
 npm install
-
 npm run dev
 ```
 
+## Deploy
 
+1. Crie o projeto no Supabase.
+2. Execute `docs/SUPABASE_SCHEMA.sql`.
+3. Configure as variaveis Supabase e Stripe no Render.
+4. Rode `python manage.py migrate` no deploy da API.
+5. Configure o webhook Stripe para `/api/billing/webhook/stripe/`.
+6. Configure o redirect de reset de senha para `/reset-password`.
 
-# 🔄 Fluxo da plataforma
+## Migracao
 
-```text
-Usuário acessa a plataforma
-        ↓
-Frontend React
-        ↓
-Autenticação JWT
-        ↓
-API Django
-        ↓
-Banco PostgreSQL
-        ↓
-Stripe processa pagamentos
-        ↓
-Sistema libera funcionalidades
-```
-
-
-
-# 🛡️ Confiabilidade
-
-✅ Estrutura fullstack moderna  
-✅ Sistema escalável  
-✅ Segurança robusta  
-✅ API modular  
-✅ Backend desacoplado  
-✅ Preparado para múltiplos clientes  
-
-
-
-# ⚠️ Limitações atuais
-
-- Sistema de email ainda precisa de provedor real
-- Algumas áreas administrativas continuam em desenvolvimento
-- Plataforma ainda está recebendo melhorias visuais
-
-
-
-# 📈 Próximos passos
-
-- Builder visual de sites
-- Gestão automática de domínios
-- Deploy automatizado
-- Sistema white-label
-- IA para criação de layouts
-- Dashboard financeira
-- Analytics avançado
-- Multi-tenant completo
-
-
-
-# 🌍 Aplicações
-
-- Sites institucionais
-- Lojas online
-- Landing pages
-- Portfólios
-- Sistemas SaaS
-- Gestão de clientes
-- Assinaturas recorrentes
-
-
-
-# 🔗 Projeto
-
-## GitHub Pages
-
-https://spgmarcos.github.io/SmartControlSite/
-
-
-
-# 👨‍💻 Autores
-
-## Ryan Maximiano
-
-## Marcos Gabriel Ferreira Miranda
-
-Desenvolvedor Fullstack | IoT | Automação
-
-React • Django • PostgreSQL • Stripe
-
-Fundador da SmartControl
-
-📍 Belo Horizonte - MG
+O guia completo esta em `docs/SUPABASE_MIGRATION.md`.

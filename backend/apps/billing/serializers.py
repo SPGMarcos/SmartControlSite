@@ -45,19 +45,23 @@ class SubscriptionSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "client",
+            "user",
             "client_company",
             "plan",
             "plan_name",
             "project",
             "project_name",
             "status",
+            "plano",
+            "stripe_customer_id",
+            "stripe_subscription_id",
             "current_period_start",
             "current_period_end",
             "cancel_at_period_end",
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("id", "client_company", "plan_name", "created_at", "updated_at")
+        read_only_fields = ("id", "user", "client_company", "plan_name", "stripe_customer_id", "stripe_subscription_id", "created_at", "updated_at")
 
 
 class PaymentSerializer(serializers.ModelSerializer):
@@ -69,6 +73,7 @@ class PaymentSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "client",
+            "user",
             "client_company",
             "subscription",
             "project",
@@ -78,6 +83,9 @@ class PaymentSerializer(serializers.ModelSerializer):
             "amount",
             "currency",
             "stripe_checkout_session_id",
+            "stripe_payment_intent",
+            "stripe_payment_intent_id",
+            "stripe_invoice_id",
             "paid_at",
             "created_at",
             "updated_at",

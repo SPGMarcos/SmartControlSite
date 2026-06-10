@@ -1,4 +1,13 @@
 import { apiFetch, getRefreshToken, setAccessToken, setRefreshToken } from "./api.js";
+import { supabase } from "../lib/supabase/client.js";
+
+async function persistSupabaseSession(data) {
+  if (!data.access || !data.refresh) return;
+  await supabase.auth.setSession({
+    access_token: data.access,
+    refresh_token: data.refresh
+  });
+}
 
 export async function login(credentials) {
   const data = await apiFetch("/auth/login/", {
@@ -6,17 +15,26 @@ export async function login(credentials) {
     auth: false,
     body: credentials
   });
+  await persistSupabaseSession(data);
   setAccessToken(data.access);
   setRefreshToken(data.refresh);
   return data.user;
 }
 
 export async function register(payload) {
-  return apiFetch("/auth/register/", {
+  const data = await apiFetch("/auth/register/", {
     method: "POST",
     auth: false,
     body: payload
   });
+  if (data.access) {
+    setAccessToken(data.access);
+  }
+  if (data.refresh) {
+    setRefreshToken(data.refresh);
+  }
+  await persistSupabaseSession(data);
+  return data.user || data;
 }
 
 export async function logout() {
@@ -24,6 +42,7 @@ export async function logout() {
     method: "POST",
     body: getRefreshToken() ? { refresh: getRefreshToken() } : {}
   }).catch(() => null);
+  await supabase.auth.signOut().catch(() => null);
   setAccessToken(null);
   setRefreshToken(null);
 }

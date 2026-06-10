@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 from apps.clients.models import Client
@@ -34,9 +35,12 @@ class Subscription(TimeStampedModel):
         INCOMPLETE = "incomplete", "Incomplete"
 
     client = models.ForeignKey(Client, related_name="subscriptions", on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="subscriptions", null=True, blank=True, on_delete=models.CASCADE)
     plan = models.ForeignKey(Plan, related_name="subscriptions", on_delete=models.RESTRICT)
     project = models.ForeignKey("projects.Project", related_name="subscriptions", null=True, blank=True, on_delete=models.SET_NULL)
     status = models.CharField(max_length=32, choices=Status.choices, default=Status.PENDING)
+    plano = models.CharField(max_length=140, blank=True)
+    stripe_customer_id = models.CharField(max_length=128, null=True, blank=True)
     stripe_subscription_id = models.CharField(max_length=128, unique=True, null=True, blank=True)
     current_period_start = models.DateTimeField(null=True, blank=True)
     current_period_end = models.DateTimeField(null=True, blank=True)
@@ -46,6 +50,8 @@ class Subscription(TimeStampedModel):
         db_table = "subscriptions"
         indexes = [
             models.Index(fields=["client"]),
+            models.Index(fields=["user"]),
+            models.Index(fields=["stripe_customer_id"]),
             models.Index(fields=["status"]),
         ]
         ordering = ["-created_at"]
@@ -68,6 +74,7 @@ class Payment(TimeStampedModel):
         CANCELED = "canceled", "Canceled"
 
     client = models.ForeignKey(Client, related_name="payments", on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name="payments", null=True, blank=True, on_delete=models.CASCADE)
     subscription = models.ForeignKey(Subscription, related_name="payments", null=True, blank=True, on_delete=models.SET_NULL)
     project = models.ForeignKey("projects.Project", related_name="payments", null=True, blank=True, on_delete=models.SET_NULL)
     kind = models.CharField(max_length=24, choices=Kind.choices)
@@ -76,6 +83,7 @@ class Payment(TimeStampedModel):
     currency = models.CharField(max_length=3, default="BRL")
     stripe_checkout_session_id = models.CharField(max_length=128, unique=True, null=True, blank=True)
     stripe_payment_intent_id = models.CharField(max_length=128, unique=True, null=True, blank=True)
+    stripe_payment_intent = models.CharField(max_length=128, null=True, blank=True)
     stripe_invoice_id = models.CharField(max_length=128, unique=True, null=True, blank=True)
     paid_at = models.DateTimeField(null=True, blank=True)
     metadata = models.JSONField(default=dict, blank=True)
@@ -84,6 +92,7 @@ class Payment(TimeStampedModel):
         db_table = "payments"
         indexes = [
             models.Index(fields=["client"]),
+            models.Index(fields=["user"]),
             models.Index(fields=["status"]),
             models.Index(fields=["kind"]),
             models.Index(fields=["stripe_checkout_session_id"]),

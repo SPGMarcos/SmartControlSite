@@ -4,6 +4,8 @@ from django.db import transaction
 from rest_framework import serializers
 
 from apps.core.validators import sanitize_text
+from apps.lib.supabase.client import SupabaseAuthClient
+from apps.repositories.profiles import ProfileRepository
 from apps.users.serializers import UserSerializer
 
 from .models import Client
@@ -61,12 +63,31 @@ class ClientCreateSerializer(serializers.Serializer):
 
     @transaction.atomic
     def create(self, validated_data):
-        user = User.objects.create_user(
+        first_name = sanitize_text(validated_data["first_name"])
+        last_name = sanitize_text(validated_data.get("last_name", ""))
+        supabase_user = SupabaseAuthClient().create_user(
             email=validated_data["email"],
             password=validated_data["password"],
-            first_name=sanitize_text(validated_data["first_name"]),
-            last_name=sanitize_text(validated_data.get("last_name", "")),
+            metadata={
+                "first_name": first_name,
+                "last_name": last_name,
+                "company_name": sanitize_text(validated_data["company_name"]),
+            },
+        )
+        user = User.objects.create_user(
+            email=validated_data["email"],
+            password=None,
+            first_name=first_name,
+            last_name=last_name,
+            supabase_user_id=supabase_user["id"],
             role=User.Role.CLIENT,
+        )
+        user.set_unusable_password()
+        user.save(update_fields=["password"])
+        ProfileRepository.upsert_from_registration(
+            supabase_user_id=supabase_user["id"],
+            email=user.email,
+            nome=" ".join(item for item in [first_name, last_name] if item).strip() or user.email,
         )
         return Client.objects.create(
             user=user,

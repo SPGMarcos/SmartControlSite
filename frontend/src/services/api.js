@@ -1,3 +1,5 @@
+import { supabase } from "../lib/supabase/client.js";
+
 const PRODUCTION_API_URL = "https://smartcontrolsite.onrender.com/api";
 
 function getDefaultApiUrl() {
@@ -62,6 +64,15 @@ async function ensureCsrf() {
   csrfReady = true;
 }
 
+async function prepareCsrf() {
+  try {
+    await ensureCsrf();
+  } catch {
+    csrfReady = false;
+  }
+  return getCsrfToken();
+}
+
 export function setRefreshToken(token) {
   refreshToken = token || null;
   if (token) {
@@ -76,29 +87,30 @@ function getCsrfToken() {
 }
 
 async function refreshAccessToken() {
-  await ensureCsrf();
-  const response = await fetch(`${API_BASE_URL}/auth/token/refresh/`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      "X-CSRFToken": getCsrfToken()
-    },
-    body: JSON.stringify(refreshToken ? { refresh: refreshToken } : {})
-  });
-
-  if (!response.ok) {
+  const { data, error } = await supabase.auth.refreshSession(
+    refreshToken ? { refresh_token: refreshToken } : undefined
+  );
+  if (error || !data.session?.access_token) {
     setAccessToken(null);
     setRefreshToken(null);
     throw new Error("Sessao expirada.");
   }
-
-  const data = await response.json();
-  setAccessToken(data.access);
-  if (data.refresh) {
-    setRefreshToken(data.refresh);
+  setAccessToken(data.session.access_token);
+  if (data.session.refresh_token) {
+    setRefreshToken(data.session.refresh_token);
   }
-  return data.access;
+  return data.session.access_token;
+}
+
+async function getSessionAccessToken() {
+  if (accessToken) return accessToken;
+  const { data } = await supabase.auth.getSession();
+  if (data.session?.access_token) {
+    setAccessToken(data.session.access_token);
+    setRefreshToken(data.session.refresh_token);
+    return data.session.access_token;
+  }
+  return null;
 }
 
 export async function apiFetch(path, options = {}) {
@@ -110,13 +122,16 @@ export async function apiFetch(path, options = {}) {
     headers.set("Content-Type", "application/json");
   }
 
-  if (accessToken && options.auth !== false) {
-    headers.set("Authorization", `Bearer ${accessToken}`);
+  const token = options.auth === false ? null : await getSessionAccessToken();
+  if (token && options.auth !== false) {
+    headers.set("Authorization", `Bearer ${token}`);
   }
 
   if (!["GET", "HEAD", "OPTIONS"].includes(method.toUpperCase())) {
-    await ensureCsrf();
-    headers.set("X-CSRFToken", getCsrfToken());
+    const token = await prepareCsrf();
+    if (token) {
+      headers.set("X-CSRFToken", token);
+    }
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
