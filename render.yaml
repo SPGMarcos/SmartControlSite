@@ -114,7 +114,7 @@ services:
 
     envVars:
       - key: VITE_API_URL
-        value: https://smartcontrolsite.onrender.com/api
+        value: https://smartcontrol-sites-api.onrender.com/api
 
       - key: VITE_APP_BASE_PATH
         value: /SmartControlSite/

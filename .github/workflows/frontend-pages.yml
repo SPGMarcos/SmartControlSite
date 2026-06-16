@@ -23,7 +23,7 @@ jobs:
         working-directory: frontend
     env:
       VITE_BASE_PATH: /SmartControlSite/
-      VITE_API_URL: ${{ vars.VITE_API_URL || 'https://smartcontrolsite.onrender.com/api' }}
+      VITE_API_URL: ${{ vars.VITE_API_URL || 'https://smartcontrol-sites-api.onrender.com/api' }}
       VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || 'https://zusqjodvlwufmtuwmliz.supabase.co' }}
       VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || 'sb_publishable_QU2H0zVUzawKM7IDzYzBQQ_m8S5CaPW' }}
     steps:

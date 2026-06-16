@@ -1,6 +1,6 @@
 import { supabase } from "../lib/supabase/client.js";
 
-const PRODUCTION_API_URL = "https://smartcontrolsite.onrender.com/api";
+const PRODUCTION_API_URL = "https://smartcontrol-sites-api.onrender.com/api";
 
 function getDefaultApiUrl() {
   if (typeof window === "undefined") return PRODUCTION_API_URL;
