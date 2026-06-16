@@ -15,6 +15,10 @@ function money(value, currency = "BRL") {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(Number(value || 0));
 }
 
+function planMonthlyLabel(plan) {
+  return Number(plan.monthly_price) > 0 ? `${money(plan.monthly_price)} / mes` : "Sob medida";
+}
+
 function date(value) {
   if (!value) return "-";
   return new Intl.DateTimeFormat("pt-BR").format(new Date(value));
@@ -170,11 +174,11 @@ export default function BillingPage() {
               <div className="compact-item align-start" key={plan.id}>
                 <div>
                   <strong>{plan.name}</strong>
-                  <span>{money(plan.monthly_price)} / mes</span>
+                  <span>{planMonthlyLabel(plan)}</span>
                 </div>
                 <button className="secondary-button" type="button" disabled={Boolean(action) || Number(plan.monthly_price) <= 0} onClick={() => checkout({ plan_id: plan.id, kind: "subscription" }, "Abrindo assinatura")}>
                   <Repeat size={17} />
-                  Assinar
+                  {Number(plan.monthly_price) > 0 ? "Assinar" : "Solicitar"}
                 </button>
               </div>
             ))}

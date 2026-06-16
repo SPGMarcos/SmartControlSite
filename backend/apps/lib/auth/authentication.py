@@ -6,6 +6,9 @@ from rest_framework import authentication, exceptions
 from apps.repositories.profiles import ProfileRepository
 
 
+_jwk_client = None
+
+
 class SupabaseJWTAuthentication(authentication.BaseAuthentication):
     keyword = "Bearer"
 
@@ -24,19 +27,50 @@ class SupabaseJWTAuthentication(authentication.BaseAuthentication):
         return (user, token)
 
     def _decode(self, token):
+        try:
+            header = jwt.get_unverified_header(token)
+            algorithm = header.get("alg")
+            if algorithm == "HS256":
+                return self._decode_legacy_hs256(token)
+            return self._decode_with_jwks(token, algorithm)
+        except (jwt.PyJWTError, ValueError) as exc:
+            raise exceptions.AuthenticationFailed("Token Supabase invalido ou expirado.") from exc
+
+    def _decode_legacy_hs256(self, token):
         if not settings.SUPABASE_JWT_SECRET:
             raise exceptions.AuthenticationFailed("Supabase JWT secret nao configurado.")
+        return jwt.decode(
+            token,
+            settings.SUPABASE_JWT_SECRET,
+            algorithms=["HS256"],
+            audience=settings.SUPABASE_JWT_AUDIENCE,
+            options={"require": ["exp", "sub"]},
+        )
 
-        try:
-            return jwt.decode(
-                token,
-                settings.SUPABASE_JWT_SECRET,
-                algorithms=["HS256"],
-                audience=settings.SUPABASE_JWT_AUDIENCE,
-                options={"require": ["exp", "sub"]},
+    def _decode_with_jwks(self, token, algorithm):
+        if algorithm not in {"ES256", "RS256"}:
+            raise exceptions.AuthenticationFailed("Algoritmo JWT Supabase nao suportado.")
+        if not settings.SUPABASE_URL:
+            raise exceptions.AuthenticationFailed("Supabase URL nao configurada.")
+
+        signing_key = self._get_jwk_client().get_signing_key_from_jwt(token)
+        return jwt.decode(
+            token,
+            signing_key.key,
+            algorithms=[algorithm],
+            audience=settings.SUPABASE_JWT_AUDIENCE,
+            issuer=f"{settings.SUPABASE_URL}/auth/v1",
+            options={"require": ["exp", "sub"]},
+        )
+
+    def _get_jwk_client(self):
+        global _jwk_client
+        if _jwk_client is None:
+            _jwk_client = jwt.PyJWKClient(
+                f"{settings.SUPABASE_URL}/auth/v1/.well-known/jwks.json",
+                cache_keys=True,
             )
-        except jwt.PyJWTError as exc:
-            raise exceptions.AuthenticationFailed("Token Supabase invalido ou expirado.") from exc
+        return _jwk_client
 
     def _sync_user(self, payload):
         supabase_user_id = payload.get("sub")
