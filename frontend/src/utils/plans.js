@@ -6,9 +6,16 @@ export function money(value, currency = "BRL") {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(Number(value || 0));
 }
 
+const monthlyTitleBySlug = {
+  start: "Assinatura opcional de suporte",
+  business: "Operacao recorrente",
+  scale: "SLA e evolucao continua",
+};
+
 export function normalizePlan(plan) {
   const setupPrice = Number(plan.setup_price || 0);
   const monthlyPrice = Number(plan.monthly_price || 0);
+  const slug = String(plan.slug || "").toLowerCase();
 
   return {
     ...plan,
@@ -16,7 +23,7 @@ export function normalizePlan(plan) {
     monthlyPrice,
     setupLabel: setupPrice > 0 ? money(setupPrice) : "Sob medida",
     monthlyLabel: monthlyPrice > 0 ? `${money(monthlyPrice)} / mes` : "Contrato recorrente",
-    monthlyTitle: plan.monthly_title || "Continuidade e suporte",
+    monthlyTitle: plan.monthly_title || monthlyTitleBySlug[slug] || "Continuidade e suporte",
     monthlyText: plan.description || "Suporte, manutencao e evolucao continua conforme o plano contratado.",
     features: Array.isArray(plan.features) ? plan.features.filter(Boolean) : [],
   };
