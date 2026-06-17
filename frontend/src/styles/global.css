@@ -7,6 +7,7 @@
   --line: #dbe3ec;
   --soft: #f3f4f6;
   --white: #ffffff;
+  --inverse-text: #ffffff;
   --danger: #dc2626;
   --warning: #f59e0b;
   --page: #ffffff;
@@ -45,6 +46,7 @@
   --line: rgba(148, 163, 184, 0.22);
   --soft: #0f172a;
   --white: #111827;
+  --inverse-text: #f8fafc;
   --page: #080d18;
   --surface: #101827;
   --surface-strong: #121d30;
@@ -431,7 +433,6 @@ button {
 }
 
 .service-grid,
-.portfolio-grid,
 .plans-grid,
 .stats-grid {
   display: grid;
@@ -440,7 +441,6 @@ button {
 }
 
 .card,
-.portfolio-item,
 .plan-card,
 .stat-card,
 .panel,
@@ -468,7 +468,6 @@ button {
 }
 
 .card h3,
-.portfolio-item h3,
 .plan-card h3,
 .panel h2 {
   margin: 14px 0 8px;
@@ -476,63 +475,11 @@ button {
 }
 
 .card p,
-.portfolio-item p,
 .plan-card span,
 .app-header p,
 .final-cta p {
   color: var(--muted-ink);
   line-height: 1.6;
-}
-
-.portfolio-item {
-  display: grid;
-  gap: 16px;
-  padding: 16px;
-}
-
-.portfolio-preview {
-  display: grid;
-  align-content: start;
-  gap: 12px;
-  min-height: 170px;
-  padding: 18px;
-  border-radius: 8px;
-  background: var(--surface-strong);
-}
-
-.portfolio-preview span,
-.portfolio-preview strong,
-.portfolio-preview i {
-  display: block;
-  height: 12px;
-  border-radius: 8px;
-  background: var(--surface);
-}
-
-.portfolio-preview strong {
-  width: 68%;
-  height: 26px;
-}
-
-.portfolio-preview i {
-  width: 48%;
-}
-
-.preview-1 {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--blue) 22%, var(--surface)), color-mix(in srgb, var(--cyan) 16%, var(--surface)));
-}
-
-.preview-2 {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--cyan) 24%, var(--surface)), color-mix(in srgb, var(--green) 14%, var(--surface)));
-}
-
-.preview-3 {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--green) 20%, var(--surface)), color-mix(in srgb, var(--blue) 12%, var(--surface)));
-}
-
-.mini-status {
-  color: var(--green);
-  font-weight: 800;
 }
 
 .plan-card {
@@ -640,7 +587,7 @@ button {
   place-items: center;
   width: 32px;
   height: 32px;
-  color: var(--white);
+  color: var(--inverse-text);
   background: var(--blue);
   border-radius: 50%;
   font-weight: 800;
@@ -660,7 +607,7 @@ button {
 
 .final-cta p {
   max-width: 660px;
-  color: #d1d5db;
+  color: color-mix(in srgb, var(--cta-text) 82%, transparent);
 }
 
 .auth-page {
@@ -709,7 +656,7 @@ button {
 
 .auth-metric {
   padding: 24px;
-  color: var(--white);
+  color: var(--inverse-text);
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.12);
 }
@@ -993,6 +940,27 @@ button {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
+}
+
+.span-3,
+.billing-products {
+  grid-column: 1 / -1;
+}
+
+.billing-products {
+  display: grid;
+  gap: 14px;
+}
+
+.section-note {
+  margin: 4px 0 0;
+  color: var(--muted-ink);
+}
+
+.plan-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: auto;
 }
 
 .panel {
@@ -1281,7 +1249,6 @@ button {
   }
 
   .service-grid,
-  .portfolio-grid,
   .plans-grid,
   .stats-grid,
   .dashboard-grid,
@@ -1337,7 +1304,6 @@ button {
   }
 
   .service-grid,
-  .portfolio-grid,
   .plans-grid,
   .stats-grid,
   .dashboard-grid,

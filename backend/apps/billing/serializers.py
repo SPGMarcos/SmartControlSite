@@ -13,6 +13,7 @@ class PlanSerializer(serializers.ModelSerializer):
             "name",
             "slug",
             "description",
+            "monthly_title",
             "setup_price",
             "monthly_price",
             "features",
@@ -32,6 +33,9 @@ class PlanSerializer(serializers.ModelSerializer):
         return sanitize_text(value)
 
     def validate_description(self, value):
+        return sanitize_text(value)
+
+    def validate_monthly_title(self, value):
         return sanitize_text(value)
 
 

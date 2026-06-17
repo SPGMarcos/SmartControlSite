@@ -10,7 +10,6 @@ export default function PublicHeader() {
       <Logo />
       <nav className="public-nav" aria-label="Principal">
         <a href="#servicos">Servicos</a>
-        <a href="#portfolio">Portfolio</a>
         <a href="#planos">Planos</a>
         <a href="#processo">Processo</a>
       </nav>

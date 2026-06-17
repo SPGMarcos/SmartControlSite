@@ -27,11 +27,15 @@ export default function AdminPage() {
   const [payments, setPayments] = useState([]);
   const [requests, setRequests] = useState([]);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [action, setAction] = useState("");
   const [planForm, setPlanForm] = useState({
     name: "",
     slug: "",
     setup_price: "",
     monthly_price: "",
+    monthly_title: "",
     description: "",
     features: "",
     stripe_setup_price_id: "",
@@ -39,6 +43,7 @@ export default function AdminPage() {
   });
 
   const load = async () => {
+    setLoading(true);
     setError("");
     const results = await Promise.allSettled([
       getClients(),
@@ -54,6 +59,7 @@ export default function AdminPage() {
     if (results[4].status === "fulfilled") setRequests(asArray(results[4].value));
     const rejected = results.find((item) => item.status === "rejected");
     if (rejected) setError(rejected.reason.message);
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -67,45 +73,66 @@ export default function AdminPage() {
 
   const submitPlan = async (event) => {
     event.preventDefault();
+    setError("");
+    setSuccess("");
+    setAction("Criando plano");
     const features = planForm.features
       .split("\n")
       .map((item) => cleanText(item))
       .filter(Boolean);
-    await createPlan({
-      name: cleanText(planForm.name),
-      slug: cleanText(planForm.slug),
-      description: cleanText(planForm.description),
-      setup_price: planForm.setup_price || 0,
-      monthly_price: planForm.monthly_price || 0,
-      features,
-      is_active: true,
-      stripe_setup_price_id: cleanText(planForm.stripe_setup_price_id),
-      stripe_monthly_price_id: cleanText(planForm.stripe_monthly_price_id)
-    });
-    setPlanForm({ name: "", slug: "", setup_price: "", monthly_price: "", description: "", features: "", stripe_setup_price_id: "", stripe_monthly_price_id: "" });
-    await load();
+    try {
+      await createPlan({
+        name: cleanText(planForm.name),
+        slug: cleanText(planForm.slug),
+        description: cleanText(planForm.description),
+        setup_price: planForm.setup_price || 0,
+        monthly_price: planForm.monthly_price || 0,
+        monthly_title: cleanText(planForm.monthly_title),
+        features,
+        is_active: true,
+        stripe_setup_price_id: cleanText(planForm.stripe_setup_price_id),
+        stripe_monthly_price_id: cleanText(planForm.stripe_monthly_price_id)
+      });
+      setPlanForm({ name: "", slug: "", setup_price: "", monthly_price: "", monthly_title: "", description: "", features: "", stripe_setup_price_id: "", stripe_monthly_price_id: "" });
+      setSuccess("Plano criado com sucesso.");
+      await load();
+    } catch (item) {
+      setError(item.message);
+    } finally {
+      setAction("");
+    }
   };
 
   const changeProjectStatus = async (project, status) => {
     setError("");
+    setSuccess("");
+    setAction(`Atualizando ${project.name}`);
     try {
       await updateProject(project.id, { status });
+      setSuccess("Status do projeto atualizado.");
       await load();
     } catch (item) {
       setError(item.message);
+    } finally {
+      setAction("");
     }
   };
 
   const changeProjectPlan = async (project, planId) => {
     setError("");
+    setSuccess("");
+    setAction(`Vinculando plano a ${project.name}`);
     try {
       await updateProject(project.id, {
         plan_id: planId ? Number(planId) : null,
         status: planId && project.status === "awaiting_analysis" ? "quote_sent" : project.status
       });
+      setSuccess("Plano do projeto atualizado.");
       await load();
     } catch (item) {
       setError(item.message);
+    } finally {
+      setAction("");
     }
   };
 
@@ -120,6 +147,9 @@ export default function AdminPage() {
       </header>
 
       {error && <p className="notice error">{error}</p>}
+      {success && <p className="notice success">{success}</p>}
+      {loading && <p className="notice">Carregando painel administrativo...</p>}
+      {action && <p className="notice">Processando: {action}...</p>}
 
       <section className="stats-grid">
         <StatCard label="Clientes" value={clients.length} detail="Contas cadastradas" icon={UsersRound} />
@@ -169,7 +199,11 @@ export default function AdminPage() {
               <input type="number" min="0" step="0.01" value={planForm.monthly_price} onChange={(event) => setPlanForm({ ...planForm, monthly_price: event.target.value })} />
             </label>
             <label>
-              Descricao
+              Titulo recorrente
+              <input value={planForm.monthly_title} onChange={(event) => setPlanForm({ ...planForm, monthly_title: event.target.value })} placeholder="Assinatura opcional de suporte" />
+            </label>
+            <label>
+              Descricao recorrente
               <textarea value={planForm.description} onChange={(event) => setPlanForm({ ...planForm, description: event.target.value })} />
             </label>
             <label>
@@ -184,9 +218,9 @@ export default function AdminPage() {
               Stripe mensal price
               <input value={planForm.stripe_monthly_price_id} onChange={(event) => setPlanForm({ ...planForm, stripe_monthly_price_id: event.target.value })} placeholder="price_..." />
             </label>
-            <button className="primary-button full" type="submit">
+            <button className="primary-button full" type="submit" disabled={Boolean(action)}>
               <Plus size={18} />
-              Criar plano
+              {action === "Criando plano" ? "Criando..." : "Criar plano"}
             </button>
           </form>
         </article>
@@ -203,14 +237,14 @@ export default function AdminPage() {
                   <span>{project.client_company} {project.plan_name ? `- ${project.plan_name}` : ""}</span>
                 </div>
                 <div className="row-actions">
-                  <select className="mini-select" value={project.status} onChange={(event) => changeProjectStatus(project, event.target.value)}>
+                  <select className="mini-select" value={project.status} onChange={(event) => changeProjectStatus(project, event.target.value)} disabled={Boolean(action)}>
                     {projectStatuses.map(([value, label]) => (
                       <option key={value} value={value}>
                         {label}
                       </option>
                     ))}
                   </select>
-                  <select className="mini-select" value={project.plan_id || ""} onChange={(event) => changeProjectPlan(project, event.target.value)}>
+                  <select className="mini-select" value={project.plan_id || ""} onChange={(event) => changeProjectPlan(project, event.target.value)} disabled={Boolean(action)}>
                     <option value="">Sem plano</option>
                     {plans.map((plan) => (
                       <option key={plan.id} value={plan.id}>

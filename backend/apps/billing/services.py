@@ -81,6 +81,34 @@ def _payment_amount(plan, kind):
     return plan.setup_price
 
 
+def _stripe_line_item(plan, kind):
+    if kind == Payment.Kind.SUBSCRIPTION:
+        price_id = plan.stripe_monthly_price_id
+        amount = plan.monthly_price
+        recurring = True
+    else:
+        price_id = plan.stripe_setup_price_id
+        amount = plan.setup_price
+        recurring = False
+
+    if price_id:
+        return {"price": price_id, "quantity": 1}
+    if amount <= 0:
+        raise ValidationError("Plano sem valor configurado para este tipo de cobranca.")
+
+    price_data = {
+        "currency": "brl",
+        "unit_amount": int(amount * Decimal("100")),
+        "product_data": {
+            "name": f"{plan.name} - {'assinatura mensal' if recurring else 'projeto unico'}",
+            "metadata": {"plan_id": str(plan.id), "plan_slug": plan.slug},
+        },
+    }
+    if recurring:
+        price_data["recurring"] = {"interval": "month"}
+    return {"price_data": price_data, "quantity": 1}
+
+
 class StripeBillingService:
     @staticmethod
     def ensure_customer(client):
@@ -104,14 +132,9 @@ class StripeBillingService:
             raise ValidationError("Stripe nao configurado.")
 
         if kind == Payment.Kind.SUBSCRIPTION:
-            price_id = plan.stripe_monthly_price_id
             mode = "subscription"
         else:
-            price_id = plan.stripe_setup_price_id
             mode = "payment"
-
-        if not price_id:
-            raise ValidationError("Plano sem price id da Stripe para este tipo de cobranca.")
 
         metadata = {
             "client_id": str(client.id),
@@ -124,7 +147,7 @@ class StripeBillingService:
         session_payload = {
             "customer": customer_id,
             "mode": mode,
-            "line_items": [{"price": price_id, "quantity": 1}],
+            "line_items": [_stripe_line_item(plan, kind)],
             "success_url": settings.STRIPE_SUCCESS_URL,
             "cancel_url": settings.STRIPE_CANCEL_URL,
             "client_reference_id": str(client.id),

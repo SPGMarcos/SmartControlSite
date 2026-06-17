@@ -3,21 +3,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import AppShell from "../components/AppShell.jsx";
+import PlanCatalog from "../components/PlanCatalog.jsx";
 import StatCard from "../components/StatCard.jsx";
 import StatusBadge from "../components/StatusBadge.jsx";
 import { createCheckoutSession, createCustomerPortalSession, getPayments, getPlans, getProjects, getSubscriptions } from "../services/dashboardService.js";
-
-function asArray(value) {
-  return Array.isArray(value) ? value : value?.results || [];
-}
-
-function money(value, currency = "BRL") {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(Number(value || 0));
-}
-
-function planMonthlyLabel(plan) {
-  return Number(plan.monthly_price) > 0 ? `${money(plan.monthly_price)} / mes` : "Sob medida";
-}
+import { asArray, money, normalizePlans } from "../utils/plans.js";
 
 function date(value) {
   if (!value) return "-";
@@ -45,7 +35,7 @@ export default function BillingPage() {
     setError("");
     const results = await Promise.allSettled([getProjects(), getPlans(), getPayments(), getSubscriptions()]);
     if (results[0].status === "fulfilled") setProjects(asArray(results[0].value));
-    if (results[1].status === "fulfilled") setPlans(asArray(results[1].value));
+    if (results[1].status === "fulfilled") setPlans(normalizePlans(results[1].value));
     if (results[2].status === "fulfilled") setPayments(asArray(results[2].value));
     if (results[3].status === "fulfilled") setSubscriptions(asArray(results[3].value));
     const rejected = results.find((item) => item.status === "rejected");
@@ -118,6 +108,32 @@ export default function BillingPage() {
       </section>
 
       <section className="dashboard-grid">
+        <section className="billing-products span-3">
+          <div className="panel-heading">
+            <div>
+              <h2>Planos e produtos</h2>
+              <p className="section-note">Os mesmos produtos da Home, sincronizados pela API.</p>
+            </div>
+          </div>
+          <PlanCatalog
+            plans={plans}
+            loading={loading && plans.length === 0}
+            renderAction={(plan) => (
+              <div className="plan-actions">
+                <button className="secondary-button full" type="button" disabled={Boolean(action) || plan.setupPrice <= 0} onClick={() => checkout({ plan_id: plan.id, kind: "one_time" }, "Abrindo checkout do projeto")}>
+                  <CreditCard size={17} />
+                  {plan.setupPrice > 0 ? "Pagar projeto" : "Solicitar proposta"}
+                </button>
+                <button className="primary-button full" type="button" disabled={Boolean(action) || plan.monthlyPrice <= 0} onClick={() => checkout({ plan_id: plan.id, kind: "subscription" }, "Abrindo assinatura")}>
+                  <Repeat size={17} />
+                  {plan.monthlyPrice > 0 ? "Assinar suporte" : "Sob medida"}
+                </button>
+              </div>
+            )}
+          />
+          {action && <p className="notice">Processando: {action}...</p>}
+        </section>
+
         <article className="panel span-2">
           <div className="panel-heading">
             <h2>Projetos para pagamento</h2>
@@ -162,27 +178,6 @@ export default function BillingPage() {
               <ExternalLink size={18} />
               Gerenciar assinatura
             </button>
-          </div>
-        </article>
-
-        <article className="panel span-2">
-          <div className="panel-heading">
-            <h2>Planos mensais</h2>
-          </div>
-          <div className="stack-list">
-            {plans.map((plan) => (
-              <div className="compact-item align-start" key={plan.id}>
-                <div>
-                  <strong>{plan.name}</strong>
-                  <span>{planMonthlyLabel(plan)}</span>
-                </div>
-                <button className="secondary-button" type="button" disabled={Boolean(action) || Number(plan.monthly_price) <= 0} onClick={() => checkout({ plan_id: plan.id, kind: "subscription" }, "Abrindo assinatura")}>
-                  <Repeat size={17} />
-                  {Number(plan.monthly_price) > 0 ? "Assinar" : "Solicitar"}
-                </button>
-              </div>
-            ))}
-            {plans.length === 0 && <p className="empty">Nenhum plano disponivel.</p>}
           </div>
         </article>
 

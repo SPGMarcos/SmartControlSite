@@ -32,6 +32,8 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(true);
+  const [submittingProject, setSubmittingProject] = useState(false);
+  const [submittingRequest, setSubmittingRequest] = useState(false);
   const [projectForm, setProjectForm] = useState({
     name: "",
     site_type: "landing_page",
@@ -86,6 +88,8 @@ export default function DashboardPage() {
     event.preventDefault();
     if (!requestForm.project_id) return;
     setError("");
+    setSuccess("");
+    setSubmittingRequest(true);
     try {
       await createRequest({
         project_id: Number(requestForm.project_id),
@@ -94,9 +98,12 @@ export default function DashboardPage() {
         priority: requestForm.priority
       });
       setRequestForm((current) => ({ ...current, title: "", description: "" }));
+      setSuccess("Solicitacao enviada para o suporte.");
       await load();
     } catch (item) {
       setError(item.message);
+    } finally {
+      setSubmittingRequest(false);
     }
   };
 
@@ -104,6 +111,7 @@ export default function DashboardPage() {
     event.preventDefault();
     setError("");
     setSuccess("");
+    setSubmittingProject(true);
     try {
       await createProject(
         {
@@ -129,6 +137,8 @@ export default function DashboardPage() {
       await load();
     } catch (item) {
       setError(item.message);
+    } finally {
+      setSubmittingProject(false);
     }
   };
 
@@ -140,9 +150,9 @@ export default function DashboardPage() {
           <h1>Ola, {user?.first_name || client?.company_name || "cliente"}</h1>
           <p>Acompanhe seu plano, projetos, historico financeiro e solicitacoes.</p>
         </div>
-        <button className="secondary-button" type="button" onClick={load}>
+        <button className="secondary-button" type="button" onClick={load} disabled={loading}>
           <RefreshCcw size={18} />
-          Atualizar
+          {loading ? "Atualizando" : "Atualizar"}
         </button>
       </header>
 
@@ -199,9 +209,9 @@ export default function DashboardPage() {
               </span>
               {projectFiles.length > 0 && <small>{projectFiles.length} arquivo(s) selecionado(s)</small>}
             </label>
-            <button className="primary-button full span-2" type="submit">
+            <button className="primary-button full span-2" type="submit" disabled={submittingProject}>
               <Send size={18} />
-              Enviar projeto
+              {submittingProject ? "Enviando..." : "Enviar projeto"}
             </button>
           </form>
         </article>
@@ -256,7 +266,7 @@ export default function DashboardPage() {
           <form className="form compact" onSubmit={submitRequest}>
             <label>
               Projeto
-              <select value={requestForm.project_id} onChange={(event) => setRequestForm({ ...requestForm, project_id: event.target.value })}>
+              <select value={requestForm.project_id} onChange={(event) => setRequestForm({ ...requestForm, project_id: event.target.value })} disabled={!projects.length}>
                 {projects.map((project) => (
                   <option key={project.id} value={project.id}>
                     {project.name}
@@ -272,8 +282,8 @@ export default function DashboardPage() {
               Descricao
               <textarea value={requestForm.description} onChange={(event) => setRequestForm({ ...requestForm, description: event.target.value })} required />
             </label>
-            <button className="primary-button full" type="submit" disabled={!projects.length}>
-              Enviar
+            <button className="primary-button full" type="submit" disabled={!projects.length || submittingRequest}>
+              {submittingRequest ? "Enviando..." : "Enviar"}
             </button>
           </form>
         </article>

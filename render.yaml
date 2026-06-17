@@ -7,7 +7,6 @@ services:
 
     buildCommand: |
       pip install -r requirements.txt
-      python manage.py makemigrations
       python manage.py migrate
       python manage.py collectstatic --noinput
 
@@ -116,7 +115,7 @@ services:
       - key: VITE_API_URL
         value: https://smartcontrol-sites-api.onrender.com/api
 
-      - key: VITE_APP_BASE_PATH
+      - key: VITE_BASE_PATH
         value: /SmartControlSite/
 
       - key: VITE_SUPABASE_URL

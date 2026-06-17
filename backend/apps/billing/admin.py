@@ -5,7 +5,7 @@ from .models import Payment, Plan, Subscription, TransactionLog
 
 @admin.register(Plan)
 class PlanAdmin(admin.ModelAdmin):
-    list_display = ("name", "slug", "setup_price", "monthly_price", "is_active")
+    list_display = ("name", "slug", "setup_price", "monthly_price", "monthly_title", "is_active")
     list_filter = ("is_active",)
     search_fields = ("name", "slug", "description")
     prepopulated_fields = {"slug": ("name",)}

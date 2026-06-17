@@ -46,6 +46,10 @@ export function getPlans() {
   return apiFetch("/plans/");
 }
 
+export function getPublicPlans() {
+  return apiFetch("/plans/", { auth: false });
+}
+
 export function createCheckoutSession(payload) {
   return apiFetch("/billing/checkout-session/", {
     method: "POST",

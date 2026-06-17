@@ -2,21 +2,21 @@ import {
   ArrowRight,
   BadgeCheck,
   BriefcaseBusiness,
-  Check,
   Code2,
   CreditCard,
   Gauge,
-  LifeBuoy,
   LockKeyhole,
   MessagesSquare,
-  RefreshCw,
-  ServerCog,
   ShieldCheck,
   Store
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
+import PlanCatalog from "../components/PlanCatalog.jsx";
 import PublicHeader from "../components/PublicHeader.jsx";
+import { getPublicPlans } from "../services/dashboardService.js";
+import { normalizePlans } from "../utils/plans.js";
 
 const services = [
   { icon: Code2, title: "Landing pages", text: "Paginas rapidas, responsivas e orientadas para conversao." },
@@ -24,43 +24,33 @@ const services = [
   { icon: BriefcaseBusiness, title: "Sistemas web", text: "Portais e ferramentas sob medida para operacoes digitais." }
 ];
 
-const portfolio = [
-  { title: "Horizon Digital", type: "Landing", status: "Publicado" },
-  { title: "Ecommerce local", type: "Loja", status: "Crescimento" },
-  { title: "Portal de servicos", type: "Sistema", status: "Operacao" }
-];
-
-const plans = [
-  {
-    name: "Start",
-    price: "R$ 799",
-    monthly: "R$ 99/mes",
-    monthlyTitle: "Assinatura opcional de suporte",
-    monthlyText: "Hospedagem, manutencao, seguranca e pequenos ajustes mensais.",
-    icon: LifeBuoy,
-    items: ["Landing page", "Hospedagem assistida", "Painel do cliente"]
-  },
-  {
-    name: "Business",
-    price: "R$ 1.990",
-    monthly: "R$ 249/mes",
-    monthlyTitle: "Operacao recorrente",
-    monthlyText: "Suporte, atualizacoes, melhorias de performance e acompanhamento.",
-    icon: ServerCog,
-    items: ["Site completo", "SEO tecnico", "Suporte mensal"]
-  },
-  {
-    name: "Scale",
-    price: "Sob medida",
-    monthly: "Contrato recorrente",
-    monthlyTitle: "SLA e evolucao continua",
-    monthlyText: "Roadmap, automacoes, integracoes e suporte prioritario.",
-    icon: RefreshCw,
-    items: ["Sistema web", "Integracoes", "SLA prioritario"]
-  }
-];
-
 export default function LandingPage() {
+  const [plans, setPlans] = useState([]);
+  const [plansLoading, setPlansLoading] = useState(true);
+  const [plansError, setPlansError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadPlans() {
+      setPlansLoading(true);
+      setPlansError("");
+      try {
+        const data = await getPublicPlans();
+        if (active) setPlans(normalizePlans(data));
+      } catch (error) {
+        if (active) setPlansError(error.message);
+      } finally {
+        if (active) setPlansLoading(false);
+      }
+    }
+
+    loadPlans();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <div className="site-page">
       <PublicHeader />
@@ -141,67 +131,21 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="section muted" id="portfolio" data-reveal>
-        <div className="section-heading">
-          <span>Portfolio</span>
-          <h2>Projetos com visual limpo, performance e manutencao.</h2>
-        </div>
-        <div className="portfolio-grid">
-          {portfolio.map((item, index) => (
-            <article className="portfolio-item interactive-card" key={item.title} data-reveal>
-              <div className={`portfolio-preview preview-${index + 1}`}>
-                <span />
-                <strong />
-                <i />
-                <i />
-              </div>
-              <div>
-                <h3>{item.title}</h3>
-                <p>{item.type}</p>
-              </div>
-              <span className="mini-status">{item.status}</span>
-            </article>
-          ))}
-        </div>
-      </section>
-
       <section className="section" id="planos" data-reveal>
         <div className="section-heading">
           <span>Planos</span>
           <h2>Pagamento unico pelo projeto e assinatura para continuidade.</h2>
         </div>
-        <div className="plans-grid">
-          {plans.map((plan) => (
-            <article className="plan-card interactive-card" key={plan.name} data-reveal>
-              <h3>{plan.name}</h3>
-              <div className="plan-price">
-                <span>Projeto unico</span>
-                <strong>{plan.price}</strong>
-              </div>
-              <div className="monthly-note">
-                <span className="monthly-icon">
-                  <plan.icon size={18} />
-                </span>
-                <div>
-                  <span>{plan.monthlyTitle}</span>
-                  <strong>{plan.monthly}</strong>
-                  <small>{plan.monthlyText}</small>
-                </div>
-              </div>
-              <ul>
-                {plan.items.map((item) => (
-                  <li key={item}>
-                    <Check size={17} />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <Link className="secondary-button full" to="/register">
-                Escolher
-              </Link>
-            </article>
-          ))}
-        </div>
+        {plansError && <p className="notice error">{plansError}</p>}
+        <PlanCatalog
+          plans={plans}
+          loading={plansLoading}
+          renderAction={(plan) => (
+            <Link className="secondary-button full" to={`/register?plan=${encodeURIComponent(plan.slug)}`}>
+              Escolher
+            </Link>
+          )}
+        />
       </section>
 
       <section className="section muted" id="processo" data-reveal>

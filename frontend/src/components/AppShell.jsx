@@ -12,7 +12,7 @@ export default function AppShell({ children }) {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="sidebar-top">
-          <Logo to="/dashboard" />
+          <Logo to="/" />
           <ThemeToggle compact />
         </div>
         <nav className="side-nav" aria-label="Aplicacao">
