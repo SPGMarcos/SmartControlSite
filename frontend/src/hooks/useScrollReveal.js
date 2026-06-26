@@ -2,13 +2,8 @@ import { useEffect } from "react";
 
 export function useScrollReveal(dependency) {
   useEffect(() => {
-    const items = Array.from(document.querySelectorAll("[data-reveal]"));
-    if (!items.length) return undefined;
-
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      items.forEach((item) => item.classList.add("is-visible"));
-      return undefined;
-    }
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const seen = new WeakSet();
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -22,11 +17,43 @@ export function useScrollReveal(dependency) {
       { threshold: 0.14, rootMargin: "0px 0px -48px 0px" }
     );
 
-    items.forEach((item, index) => {
-      item.style.setProperty("--reveal-delay", `${Math.min(index * 45, 280)}ms`);
-      observer.observe(item);
+    function reveal(items) {
+      items.forEach((item, index) => {
+        if (seen.has(item)) return;
+        seen.add(item);
+
+        if (reducedMotion) {
+          item.classList.add("is-visible");
+          return;
+        }
+
+        item.style.setProperty("--reveal-delay", `${Math.min(index * 45, 280)}ms`);
+        observer.observe(item);
+      });
+    }
+
+    function collect(root = document) {
+      const items = [];
+      if (root instanceof Element && root.matches("[data-reveal]")) {
+        items.push(root);
+      }
+      items.push(...Array.from(root.querySelectorAll?.("[data-reveal]") || []));
+      reveal(items);
+    }
+
+    collect();
+
+    const mutationObserver = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => collect(node));
+      });
     });
 
-    return () => observer.disconnect();
+    mutationObserver.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      observer.disconnect();
+      mutationObserver.disconnect();
+    };
   }, [dependency]);
 }
