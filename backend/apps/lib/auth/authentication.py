@@ -3,6 +3,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework import authentication, exceptions
 
+from apps.clients.models import Client
 from apps.repositories.profiles import ProfileRepository
 
 
@@ -108,4 +109,10 @@ class SupabaseJWTAuthentication(authentication.BaseAuthentication):
                 user.save()
             else:
                 user.save(update_fields=list(set(updates + ["updated_at"])))
+        if user.role == "client":
+            company_name = metadata.get("company_name") or " ".join(item for item in [user.first_name, user.last_name] if item).strip() or email
+            Client.objects.get_or_create(
+                user=user,
+                defaults={"company_name": company_name, "phone": metadata.get("phone") or ""},
+            )
         return user

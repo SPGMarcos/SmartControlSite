@@ -23,6 +23,21 @@ from .services import StripeBillingService, StripeWebhookService
 logger = logging.getLogger(__name__)
 
 
+def get_or_create_billing_client(user):
+    client = Client.objects.select_related("user").filter(user=user).first()
+    if client:
+        return client
+    if user.role != "client":
+        raise ValidationError("Apenas clientes podem iniciar checkout.")
+
+    company_name = " ".join(item for item in [user.first_name, user.last_name] if item).strip() or user.email
+    client, _ = Client.objects.select_related("user").get_or_create(
+        user=user,
+        defaults={"company_name": company_name},
+    )
+    return client
+
+
 def stripe_error_response(exc):
     logger.exception("Stripe API request failed: %s", exc)
     return Response(
@@ -98,7 +113,7 @@ class CheckoutSessionView(APIView):
         serializer = CheckoutSessionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        client = Client.objects.select_related("user").get(user=request.user)
+        client = get_or_create_billing_client(request.user)
         project = None
         if serializer.validated_data.get("project_id"):
             project = get_object_or_404(Project.objects.select_related("plan"), pk=serializer.validated_data["project_id"], client=client)
@@ -129,7 +144,7 @@ class CustomerPortalSessionView(APIView):
     throttle_scope = "checkout"
 
     def post(self, request):
-        client = Client.objects.select_related("user").get(user=request.user)
+        client = get_or_create_billing_client(request.user)
         try:
             session = StripeBillingService.create_portal_session(client=client, request=request)
         except stripe.error.StripeError as exc:
