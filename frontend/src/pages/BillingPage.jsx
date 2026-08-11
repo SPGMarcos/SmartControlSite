@@ -73,6 +73,22 @@ export default function BillingPage() {
     }
   };
 
+  const checkoutPlan = (plan) => {
+    if (plan.setupPrice > 0 && plan.monthlyPrice > 0) {
+      checkout({ plan_id: plan.id, kind: "subscription", include_setup: true }, "Abrindo projeto com manutencao");
+      return;
+    }
+
+    if (plan.setupPrice > 0) {
+      checkout({ plan_id: plan.id, kind: "one_time" }, "Abrindo checkout do projeto");
+      return;
+    }
+
+    if (plan.monthlyPrice > 0) {
+      checkout({ plan_id: plan.id, kind: "subscription" }, "Abrindo assinatura");
+    }
+  };
+
   useEffect(() => {
     if (loading || checkoutStartedRef.current || action) return;
 
@@ -83,6 +99,16 @@ export default function BillingPage() {
     const plan = plans.find((item) => item.slug === planSlug);
     if (!plan) {
       if (plans.length > 0) setError("Plano selecionado nao foi encontrado.");
+      return;
+    }
+
+    if (pay === "bundle" || (pay === "setup" && plan.monthlyPrice > 0)) {
+      if (plan.setupPrice <= 0 || plan.monthlyPrice <= 0) {
+        setError("Este plano ainda nao possui projeto e manutencao configurados para checkout conjunto.");
+        return;
+      }
+      checkoutStartedRef.current = true;
+      checkout({ plan_id: plan.id, kind: "subscription", include_setup: true }, "Abrindo projeto com manutencao");
       return;
     }
 
@@ -142,22 +168,10 @@ export default function BillingPage() {
           loading={loading && plans.length === 0}
           renderAction={(plan) => (
             <div className="plan-actions">
-              <button className="secondary-button full" type="button" disabled={Boolean(action) || plan.setupPrice <= 0} onClick={() => checkout({ plan_id: plan.id, kind: "one_time" }, "Abrindo checkout do projeto")}>
+              <button className="secondary-button full" type="button" disabled={Boolean(action) || (plan.setupPrice <= 0 && plan.monthlyPrice <= 0)} onClick={() => checkoutPlan(plan)}>
                 <CreditCard size={17} />
-                {plan.setupPrice > 0 ? "Pagar projeto" : "Solicitar proposta"}
+                {plan.setupPrice > 0 || plan.monthlyPrice > 0 ? "Escolher" : "Solicitar proposta"}
               </button>
-              {plan.setupPrice > 0 && plan.monthlyPrice > 0 && (
-                <button className="primary-button full" type="button" disabled={Boolean(action)} onClick={() => checkout({ plan_id: plan.id, kind: "subscription", include_setup: true }, "Abrindo projeto com suporte")}>
-                  <WalletCards size={17} />
-                  Projeto + suporte
-                </button>
-              )}
-              {plan.monthlyPrice > 0 && (
-                <button className="secondary-button full" type="button" disabled={Boolean(action)} onClick={() => checkout({ plan_id: plan.id, kind: "subscription" }, "Abrindo assinatura")}>
-                  <Repeat size={17} />
-                  Assinar suporte
-                </button>
-              )}
             </div>
           )}
         />

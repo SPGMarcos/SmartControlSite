@@ -26,8 +26,12 @@ const services = [
 
 function planIntentUrl(plan) {
   const params = new URLSearchParams({ plan: plan.slug });
-  if (plan.setupPrice > 0) {
+  if (plan.setupPrice > 0 && plan.monthlyPrice > 0) {
+    params.set("pay", "bundle");
+  } else if (plan.setupPrice > 0) {
     params.set("pay", "setup");
+  } else if (plan.monthlyPrice > 0) {
+    params.set("pay", "subscription");
   }
   return `/register?${params.toString()}`;
 }
