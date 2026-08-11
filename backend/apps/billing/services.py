@@ -162,6 +162,8 @@ class StripeBillingService:
             mode = "subscription"
         else:
             mode = "payment"
+        if mode == "subscription" and plan.setup_price > 0:
+            include_setup = True
         if mode == "subscription" and include_setup and plan.setup_price <= 0:
             raise ValidationError("Plano sem valor de projeto unico para cobranca junto com suporte.")
 

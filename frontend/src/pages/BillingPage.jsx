@@ -127,7 +127,10 @@ export default function BillingPage() {
         return;
       }
       checkoutStartedRef.current = true;
-      checkout({ plan_id: plan.id, kind: "subscription" }, "Abrindo assinatura");
+      checkout(
+        plan.setupPrice > 0 ? { plan_id: plan.id, kind: "subscription", include_setup: true } : { plan_id: plan.id, kind: "subscription" },
+        plan.setupPrice > 0 ? "Abrindo projeto com manutencao" : "Abrindo assinatura"
+      );
     }
   }, [action, loading, plans, searchParams]);
 
