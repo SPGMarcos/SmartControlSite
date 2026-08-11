@@ -18,4 +18,4 @@ def csrf(request):
 @permission_classes([AllowAny])
 @throttle_classes([])
 def health(request):
-    return Response({"status": "ok"})
+    return Response({"status": "ok", "checkout_bundle_enforced": True})
