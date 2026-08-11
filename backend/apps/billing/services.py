@@ -128,10 +128,21 @@ def _stripe_line_item(plan, kind):
 class StripeBillingService:
     @staticmethod
     def ensure_customer(client):
-        if client.stripe_customer_id:
-            return client.stripe_customer_id
         if not settings.STRIPE_SECRET_KEY:
             raise ValidationError("Stripe nao configurado.")
+        if client.stripe_customer_id:
+            try:
+                customer = stripe.Customer.retrieve(client.stripe_customer_id)
+                if not customer.get("deleted"):
+                    return client.stripe_customer_id
+            except stripe.error.InvalidRequestError as exc:
+                if getattr(exc, "code", "") != "resource_missing":
+                    raise
+
+            logger.warning("Stored Stripe customer was not found and will be recreated: client_id=%s", client.id)
+            client.stripe_customer_id = None
+            client.save(update_fields=["stripe_customer_id", "updated_at"])
+
         customer = stripe.Customer.create(
             email=client.user.email,
             name=client.company_name,
