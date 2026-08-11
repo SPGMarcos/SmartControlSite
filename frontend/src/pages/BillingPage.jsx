@@ -144,8 +144,20 @@ export default function BillingPage() {
             <div className="plan-actions">
               <button className="secondary-button full" type="button" disabled={Boolean(action) || plan.setupPrice <= 0} onClick={() => checkout({ plan_id: plan.id, kind: "one_time" }, "Abrindo checkout do projeto")}>
                 <CreditCard size={17} />
-                {plan.setupPrice > 0 ? "Escolher" : "Solicitar proposta"}
+                {plan.setupPrice > 0 ? "Pagar projeto" : "Solicitar proposta"}
               </button>
+              {plan.setupPrice > 0 && plan.monthlyPrice > 0 && (
+                <button className="primary-button full" type="button" disabled={Boolean(action)} onClick={() => checkout({ plan_id: plan.id, kind: "subscription", include_setup: true }, "Abrindo projeto com suporte")}>
+                  <WalletCards size={17} />
+                  Projeto + suporte
+                </button>
+              )}
+              {plan.monthlyPrice > 0 && (
+                <button className="secondary-button full" type="button" disabled={Boolean(action)} onClick={() => checkout({ plan_id: plan.id, kind: "subscription" }, "Abrindo assinatura")}>
+                  <Repeat size={17} />
+                  Assinar suporte
+                </button>
+              )}
             </div>
           )}
         />

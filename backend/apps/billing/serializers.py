@@ -98,12 +98,15 @@ class CheckoutSessionSerializer(serializers.Serializer):
     kind = serializers.ChoiceField(choices=Payment.Kind.choices)
     project_id = serializers.IntegerField(required=False)
     installments = serializers.IntegerField(required=False, min_value=2, max_value=12)
+    include_setup = serializers.BooleanField(required=False, default=False)
 
     def validate(self, attrs):
         if "plan_id" not in attrs and "project_id" not in attrs:
             raise serializers.ValidationError("Informe um plano ou projeto para pagamento.")
         if attrs.get("kind") == Payment.Kind.SUBSCRIPTION and attrs.get("installments"):
             raise serializers.ValidationError("Parcelamento se aplica apenas a pagamentos de projeto.")
+        if attrs.get("include_setup") and attrs.get("kind") != Payment.Kind.SUBSCRIPTION:
+            raise serializers.ValidationError("Projeto unico junto com suporte se aplica apenas a assinatura.")
         return attrs
 
 

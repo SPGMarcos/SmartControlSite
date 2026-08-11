@@ -133,6 +133,7 @@ class CheckoutSessionView(APIView):
                 project=project,
                 request=request,
                 installments=serializer.validated_data.get("installments"),
+                include_setup=serializer.validated_data.get("include_setup", False),
             )
         except stripe.error.StripeError as exc:
             return stripe_error_response(exc)

@@ -154,7 +154,7 @@ class StripeBillingService:
 
     @staticmethod
     @transaction.atomic
-    def create_checkout_session(*, client, plan, kind, project=None, request=None, installments=None):
+    def create_checkout_session(*, client, plan, kind, project=None, request=None, installments=None, include_setup=False):
         if not settings.STRIPE_SECRET_KEY:
             raise ValidationError("Stripe nao configurado.")
 
@@ -162,6 +162,8 @@ class StripeBillingService:
             mode = "subscription"
         else:
             mode = "payment"
+        if mode == "subscription" and include_setup and plan.setup_price <= 0:
+            raise ValidationError("Plano sem valor de projeto unico para cobranca junto com suporte.")
 
         metadata = {
             "client_id": str(client.id),
@@ -169,12 +171,17 @@ class StripeBillingService:
             "kind": kind,
             "project_id": str(project.id) if project else "",
             "installments": str(installments or ""),
+            "include_setup": "true" if include_setup else "false",
         }
         customer_id = StripeBillingService.ensure_customer(client)
+        line_items = [_stripe_line_item(plan, kind)]
+        if mode == "subscription" and include_setup:
+            line_items.append(_stripe_line_item(plan, Payment.Kind.ONE_TIME))
+
         session_payload = {
             "customer": customer_id,
             "mode": mode,
-            "line_items": [_stripe_line_item(plan, kind)],
+            "line_items": line_items,
             "success_url": settings.STRIPE_SUCCESS_URL,
             "cancel_url": settings.STRIPE_CANCEL_URL,
             "client_reference_id": str(client.id),
@@ -196,6 +203,8 @@ class StripeBillingService:
 
         session = stripe.checkout.Session.create(**session_payload)
         amount = _payment_amount(plan, kind)
+        if mode == "subscription" and include_setup:
+            amount += plan.setup_price
         payment = None
         if mode == "payment":
             payment = Payment.objects.create(
@@ -220,7 +229,7 @@ class StripeBillingService:
             payment=payment,
             amount=amount,
             currency="BRL",
-            payload={"session_id": session["id"], "mode": mode, "kind": kind, "plan_id": plan.id},
+            payload={"session_id": session["id"], "mode": mode, "kind": kind, "plan_id": plan.id, "include_setup": include_setup},
         )
         audit(client.user, "billing.checkout_session.create", request=request, target=client, metadata={"session_id": session["id"], "kind": kind})
         return session
