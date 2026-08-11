@@ -10,8 +10,8 @@ Este projeto esta preparado para:
 ## URLs esperadas
 
 - Frontend: `https://spgmarcos.github.io/SmartControlSite/`
-- Backend: `https://smartcontrolsite.onrender.com/api`
-- Health check backend: `https://smartcontrolsite.onrender.com/api/health/`
+- Backend: `https://smartcontrol-sites-api.onrender.com/api`
+- Health check backend: `https://smartcontrol-sites-api.onrender.com/api/health/`
 
 ## Supabase
 
@@ -56,9 +56,8 @@ O build executa:
 
 ```bash
 pip install -r requirements.txt
-python manage.py collectstatic --no-input
 python manage.py migrate --no-input
-python manage.py bootstrap_credentials
+python manage.py collectstatic --no-input
 ```
 
 ## Frontend
@@ -66,8 +65,8 @@ python manage.py bootstrap_credentials
 Configure:
 
 ```text
-VITE_API_URL=https://smartcontrolsite.onrender.com/api
-VITE_APP_BASE_PATH=/SmartControlSite/
+VITE_API_URL=https://smartcontrol-sites-api.onrender.com/api
+VITE_BASE_PATH=/SmartControlSite/
 VITE_SUPABASE_URL=<project-url>
 VITE_SUPABASE_ANON_KEY=<anon-key>
 ```
@@ -84,7 +83,7 @@ npm run build
 Webhook:
 
 ```text
-https://smartcontrolsite.onrender.com/api/billing/webhook/stripe/
+https://smartcontrol-sites-api.onrender.com/api/billing/webhook/stripe/
 ```
 
 Eventos:

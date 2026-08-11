@@ -103,7 +103,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 def database_from_supabase_env():
-    database_url = env("SUPABASE_DATABASE_URL", "")
+    database_url = env("SUPABASE_DATABASE_URL", "") or env("DATABASE_URL", "")
     if database_url:
         parsed = urlparse(database_url)
         query = dict(parse_qsl(parsed.query))
@@ -121,11 +121,11 @@ def database_from_supabase_env():
 
     return {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": env("SUPABASE_DB_NAME", "postgres"),
-        "USER": env("SUPABASE_DB_USER", "postgres"),
-        "PASSWORD": env("SUPABASE_DB_PASSWORD", ""),
-        "HOST": env("SUPABASE_DB_HOST", "localhost"),
-        "PORT": env("SUPABASE_DB_PORT", 5432, int),
+        "NAME": env("SUPABASE_DB_NAME", "") or env("POSTGRES_DB", "postgres"),
+        "USER": env("SUPABASE_DB_USER", "") or env("POSTGRES_USER", "postgres"),
+        "PASSWORD": env("SUPABASE_DB_PASSWORD", "") or env("POSTGRES_PASSWORD", ""),
+        "HOST": env("SUPABASE_DB_HOST", "") or env("POSTGRES_HOST", "localhost"),
+        "PORT": env("SUPABASE_DB_PORT", env("POSTGRES_PORT", 5432), int),
         "CONN_MAX_AGE": env("SUPABASE_DB_CONN_MAX_AGE", 600, int),
         "CONN_HEALTH_CHECKS": True,
         "OPTIONS": {"sslmode": env("SUPABASE_DB_SSLMODE", "require")},
@@ -228,16 +228,30 @@ DEFAULT_RENDER_ORIGINS = [
 DEFAULT_GITHUB_PAGES_ORIGINS = [
     "https://spgmarcos.github.io",
 ]
-CORS_ALLOWED_ORIGINS = [
-    "https://spgmarcos.github.io",
-]
+CORS_ALLOWED_ORIGINS = unique(
+    [strip_trailing_slash(item) for item in env("DJANGO_CORS_ALLOWED_ORIGINS", "", list)]
+    or [
+        FRONTEND_ORIGIN,
+        *FRONTEND_ORIGINS,
+        *DEFAULT_DEV_ORIGINS,
+        *DEFAULT_RENDER_ORIGINS,
+        *DEFAULT_GITHUB_PAGES_ORIGINS,
+    ]
+)
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = unique(list(default_headers) + [
     "x-csrftoken",
 ])
-CSRF_TRUSTED_ORIGINS = [
-    "https://spgmarcos.github.io",
-]
+CSRF_TRUSTED_ORIGINS = unique(
+    [strip_trailing_slash(item) for item in env("DJANGO_CSRF_TRUSTED_ORIGINS", "", list)]
+    or [
+        FRONTEND_ORIGIN,
+        *FRONTEND_ORIGINS,
+        *DEFAULT_DEV_ORIGINS,
+        *DEFAULT_RENDER_ORIGINS,
+        *DEFAULT_GITHUB_PAGES_ORIGINS,
+    ]
+)
 
 SECURE_SSL_REDIRECT = env("SECURE_SSL_REDIRECT", False, bool)
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

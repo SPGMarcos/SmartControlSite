@@ -1,6 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import AuthPanel from "../components/AuthPanel.jsx";
 import { useAuth } from "../hooks/useAuth.js";
@@ -8,10 +8,19 @@ import { cleanText } from "../utils/security.js";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login } = useAuth();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const redirectTarget = searchParams.get("redirect");
+
+  const destinationFor = (user) => {
+    if (redirectTarget?.startsWith("/")) {
+      return redirectTarget.replace(/^\/register/, "/billing");
+    }
+    return user.role === "admin" ? "/admin" : "/dashboard";
+  };
 
   const submit = async (event) => {
     event.preventDefault();
@@ -19,7 +28,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const user = await login({ email: cleanText(form.email), password: form.password });
-      navigate(user.role === "admin" ? "/admin" : "/dashboard");
+      navigate(destinationFor(user), { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -46,7 +55,9 @@ export default function LoginPage() {
       </form>
       <div className="auth-links">
         <Link to="/reset-password">Recuperar senha</Link>
-        <Link to="/register">Criar conta</Link>
+        <Link to={redirectTarget ? `/register${redirectTarget.includes("?") ? redirectTarget.slice(redirectTarget.indexOf("?")) : ""}` : "/register"}>
+          Criar conta
+        </Link>
       </div>
     </AuthPanel>
   );

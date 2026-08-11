@@ -1,5 +1,5 @@
 import { CreditCard, ExternalLink, ReceiptText, Repeat, WalletCards } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import AppShell from "../components/AppShell.jsx";
@@ -29,6 +29,7 @@ export default function BillingPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [action, setAction] = useState("");
+  const checkoutStartedRef = useRef(false);
 
   const load = async () => {
     setLoading(true);
@@ -72,6 +73,38 @@ export default function BillingPage() {
       setError(item.message);
     }
   };
+
+  useEffect(() => {
+    if (loading || checkoutStartedRef.current || action) return;
+
+    const planSlug = searchParams.get("plan");
+    const pay = searchParams.get("pay");
+    if (!planSlug || !pay) return;
+
+    const plan = plans.find((item) => item.slug === planSlug);
+    if (!plan) {
+      if (plans.length > 0) setError("Plano selecionado nao foi encontrado.");
+      return;
+    }
+
+    if (pay === "setup") {
+      if (plan.setupPrice <= 0) {
+        setError("Este plano e sob medida. Solicite proposta para pagamento personalizado.");
+        return;
+      }
+      checkoutStartedRef.current = true;
+      checkout({ plan_id: plan.id, kind: "one_time" }, "Abrindo checkout do projeto");
+    }
+
+    if (pay === "subscription") {
+      if (plan.monthlyPrice <= 0) {
+        setError("Este plano nao possui assinatura mensal configurada.");
+        return;
+      }
+      checkoutStartedRef.current = true;
+      checkout({ plan_id: plan.id, kind: "subscription" }, "Abrindo assinatura");
+    }
+  }, [action, loading, plans, searchParams]);
 
   const openPortal = async () => {
     setError("");

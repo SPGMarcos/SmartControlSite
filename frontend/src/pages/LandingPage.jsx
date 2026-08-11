@@ -24,6 +24,14 @@ const services = [
   { icon: BriefcaseBusiness, title: "Sistemas web", text: "Portais e ferramentas sob medida para operacoes digitais." }
 ];
 
+function planIntentUrl(plan) {
+  const params = new URLSearchParams({ plan: plan.slug });
+  if (plan.setupPrice > 0) {
+    params.set("pay", "setup");
+  }
+  return `/register?${params.toString()}`;
+}
+
 export default function LandingPage() {
   const [plans, setPlans] = useState([]);
   const [plansLoading, setPlansLoading] = useState(true);
@@ -141,7 +149,7 @@ export default function LandingPage() {
           plans={plans}
           loading={plansLoading}
           renderAction={(plan) => (
-            <Link className="secondary-button full" to={`/register?plan=${encodeURIComponent(plan.slug)}`}>
+            <Link className="secondary-button full" to={planIntentUrl(plan)}>
               Escolher
             </Link>
           )}

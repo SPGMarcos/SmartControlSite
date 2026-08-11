@@ -2,6 +2,7 @@ from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
+import logging
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -17,6 +18,17 @@ from apps.projects.models import Project
 from .models import Payment, Plan, Subscription, TransactionLog
 from .serializers import CheckoutSessionSerializer, PaymentSerializer, PlanSerializer, SubscriptionSerializer, TransactionLogSerializer
 from .services import StripeBillingService, StripeWebhookService
+
+
+logger = logging.getLogger(__name__)
+
+
+def stripe_error_response(exc):
+    logger.exception("Stripe API request failed: %s", exc)
+    return Response(
+        {"detail": "Stripe nao conseguiu processar a solicitacao. Verifique chaves, modo test/live, produtos/precos e configuracao da conta."},
+        status=status.HTTP_502_BAD_GATEWAY,
+    )
 
 
 class PlanViewSet(ModelViewSet):
@@ -98,14 +110,17 @@ class CheckoutSessionView(APIView):
         else:
             plan = get_object_or_404(Plan, pk=serializer.validated_data.get("plan_id"), is_active=True)
 
-        session = StripeBillingService.create_checkout_session(
-            client=client,
-            plan=plan,
-            kind=serializer.validated_data["kind"],
-            project=project,
-            request=request,
-            installments=serializer.validated_data.get("installments"),
-        )
+        try:
+            session = StripeBillingService.create_checkout_session(
+                client=client,
+                plan=plan,
+                kind=serializer.validated_data["kind"],
+                project=project,
+                request=request,
+                installments=serializer.validated_data.get("installments"),
+            )
+        except stripe.error.StripeError as exc:
+            return stripe_error_response(exc)
         return Response({"checkoutUrl": session["url"], "sessionId": session["id"]})
 
 
@@ -115,7 +130,10 @@ class CustomerPortalSessionView(APIView):
 
     def post(self, request):
         client = Client.objects.select_related("user").get(user=request.user)
-        session = StripeBillingService.create_portal_session(client=client, request=request)
+        try:
+            session = StripeBillingService.create_portal_session(client=client, request=request)
+        except stripe.error.StripeError as exc:
+            return stripe_error_response(exc)
         return Response({"portalUrl": session["url"], "sessionId": session["id"]})
 
 

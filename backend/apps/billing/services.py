@@ -11,6 +11,7 @@ import stripe
 from apps.clients.models import Client
 from apps.core.services import audit
 from apps.projects.models import Project
+from apps.users.models import Profile
 
 from .models import Payment, Plan, Subscription, TransactionLog
 
@@ -73,6 +74,21 @@ def _touch_project_status(project, status):
     if project.status != status:
         project.status = status
         project.save(update_fields=["status", "updated_at"])
+
+
+def _sync_profile_plan(client, plan=None, *, active=True):
+    profile = None
+    if client.user.supabase_user_id:
+        profile = Profile.objects.filter(pk=client.user.supabase_user_id).first()
+    if not profile:
+        profile = Profile.objects.filter(email__iexact=client.user.email).first()
+    if not profile:
+        return
+
+    next_plan = (plan.slug or plan.name) if active and plan else "client"
+    if profile.plano != next_plan:
+        profile.plano = next_plan
+        profile.save(update_fields=["plano", "updated_at"])
 
 
 def _payment_amount(plan, kind):
@@ -368,6 +384,8 @@ class StripeWebhookService:
             if subscription:
                 subscription.status = Subscription.Status.ACTIVE if status == Payment.Status.PAID else Subscription.Status.PAST_DUE
                 subscription.save(update_fields=["status", "updated_at"])
+                if status == Payment.Status.PAID:
+                    _sync_profile_plan(subscription.client, subscription.plan, active=True)
 
         client = subscription.client if subscription else Client.objects.filter(stripe_customer_id=invoice.get("customer")).first()
         if not client:
@@ -422,6 +440,10 @@ class StripeWebhookService:
                 "cancel_at_period_end": bool(stripe_subscription.get("cancel_at_period_end")),
             },
         )
+        if status == Subscription.Status.ACTIVE:
+            _sync_profile_plan(client, plan, active=True)
+        elif status == Subscription.Status.CANCELED and not Subscription.objects.filter(client=client, status=Subscription.Status.ACTIVE).exclude(pk=subscription.pk).exists():
+            _sync_profile_plan(client, active=False)
         return {"processed": "subscription", "client": client, "project": project, "subscription": subscription}
 
     @staticmethod

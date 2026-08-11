@@ -42,6 +42,7 @@ SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 SUPABASE_JWT_SECRET=
 SUPABASE_DATABASE_URL=
+# DATABASE_URL tambem e aceito como alias para a connection string do Postgres.
 SUPABASE_PASSWORD_RESET_REDIRECT_URL=
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
@@ -125,7 +126,7 @@ npm run dev
 2. Execute `docs/SUPABASE_SCHEMA.sql`.
 3. Configure as variaveis Supabase e Stripe no Render.
 4. Rode `python manage.py migrate` no deploy da API.
-5. Configure o webhook Stripe para `/api/billing/webhook/stripe/`.
+5. Configure o webhook Stripe para `https://smartcontrol-sites-api.onrender.com/api/billing/webhook/stripe/`.
 6. Configure o redirect de reset de senha para `/reset-password`.
 
 ## Migracao

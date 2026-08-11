@@ -108,6 +108,15 @@ class LoginSerializer(serializers.Serializer):
         if supabase_user_id and user.supabase_user_id != supabase_user_id:
             user.supabase_user_id = supabase_user_id
             user.save(update_fields=["supabase_user_id", "updated_at"])
+        if user.role == User.Role.CLIENT:
+            metadata = supabase_user.get("user_metadata") or {}
+            Client.objects.get_or_create(
+                user=user,
+                defaults={
+                    "company_name": sanitize_text(metadata.get("company_name") or user.email),
+                    "phone": sanitize_text(metadata.get("phone") or ""),
+                },
+            )
         attrs["user"] = user
         attrs["email"] = email
         attrs["session"] = session

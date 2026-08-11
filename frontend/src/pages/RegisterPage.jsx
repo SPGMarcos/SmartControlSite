@@ -1,6 +1,6 @@
 import { CheckCircle2, Circle, CircleAlert } from "lucide-react";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import AuthPanel from "../components/AuthPanel.jsx";
 import { useAuth } from "../hooks/useAuth.js";
@@ -8,6 +8,8 @@ import { cleanText, getPasswordChecks, isStrongEnoughPassword } from "../utils/s
 
 export default function RegisterPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { register } = useAuth();
   const [form, setForm] = useState({
     first_name: "",
@@ -24,6 +26,20 @@ export default function RegisterPage() {
   const passwordReady = isStrongEnoughPassword(form.password);
   const confirmationTouched = form.confirm_password.length > 0;
   const passwordsMatch = form.password && form.password === form.confirm_password;
+  const selectedPlan = cleanText(searchParams.get("plan") || "");
+  const selectedPay = cleanText(searchParams.get("pay") || "");
+
+  const billingTarget = () => {
+    const params = new URLSearchParams();
+    if (selectedPlan) params.set("plan", selectedPlan);
+    if (selectedPay) params.set("pay", selectedPay);
+    const query = params.toString();
+    return query ? `/billing?${query}` : "/dashboard";
+  };
+
+  const loginTarget = selectedPlan
+    ? `/login?redirect=${encodeURIComponent(`/register${location.search}`)}`
+    : "/login";
 
   const submit = async (event) => {
     event.preventDefault();
@@ -47,7 +63,7 @@ export default function RegisterPage() {
         email: cleanText(form.email),
         phone: cleanText(form.phone)
       });
-      navigate("/dashboard");
+      navigate(billingTarget(), { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -119,7 +135,7 @@ export default function RegisterPage() {
         </button>
       </form>
       <div className="auth-links">
-        <Link to="/login">Ja tenho conta</Link>
+        <Link to={loginTarget}>Ja tenho conta</Link>
       </div>
     </AuthPanel>
   );
