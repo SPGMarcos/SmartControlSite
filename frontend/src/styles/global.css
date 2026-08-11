@@ -906,6 +906,18 @@ button {
   margin-bottom: 18px;
 }
 
+.billing-plan-showcase {
+  margin-bottom: 28px;
+}
+
+.billing-plan-showcase .plans-grid {
+  gap: 18px;
+}
+
+.billing-plan-showcase .plan-card {
+  min-height: 380px;
+}
+
 .stat-card {
   display: flex;
   align-items: flex-start;
