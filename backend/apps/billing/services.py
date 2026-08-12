@@ -189,7 +189,7 @@ class StripeBillingService:
             "client_reference_id": str(client.id),
             "metadata": metadata,
             "payment_method_types": ["card"],
-            "billing_address_collection": "required",
+            "billing_address_collection": "auto",
             "allow_promotion_codes": True,
             "locale": "pt-BR",
             "customer_update": {"address": "auto", "name": "auto"},
