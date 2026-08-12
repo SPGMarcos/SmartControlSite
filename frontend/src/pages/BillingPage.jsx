@@ -96,6 +96,7 @@ export default function BillingPage() {
     () => projects.filter((project) => canPayProject(project)),
     [projects]
   );
+  const dataReady = !loading;
 
   const checkout = async (payload, label) => {
     setError("");
@@ -197,7 +198,7 @@ export default function BillingPage() {
       {error && <p className="notice error">{error}</p>}
       {loading && <p className="notice">Carregando billing...</p>}
 
-      {(activeSubscription || checkoutResult) && (
+      {dataReady && (activeSubscription || checkoutResult) && (
         <section className="billing-summary">
           <article className="billing-summary-main">
             <span className="eyebrow">Resumo atual</span>
@@ -245,14 +246,17 @@ export default function BillingPage() {
         {action && <p className="notice">Processando: {action}...</p>}
       </section>
 
-      <section className="stats-grid">
-        <StatCard label="Assinatura" value={activeSubscription?.plan_name || "Sem assinatura"} detail={<StatusBadge value={activeSubscription?.status} />} icon={Repeat} />
-        <StatCard label="Pagamentos pendentes" value={pendingPayments.length} detail="Aguardando confirmacao" icon={ReceiptText} />
-        <StatCard label="Projetos a pagar" value={payableProjects.length} detail="Com orcamento vinculado" icon={WalletCards} />
-        <StatCard label="Total pago" value={money(paidTotal)} detail="Confirmado" icon={CreditCard} />
-      </section>
+      {dataReady && (
+        <section className="stats-grid">
+          <StatCard label="Assinatura" value={activeSubscription?.plan_name || "Sem assinatura"} detail={<StatusBadge value={activeSubscription?.status} />} icon={Repeat} />
+          <StatCard label="Pagamentos pendentes" value={pendingPayments.length} detail="Aguardando confirmacao" icon={ReceiptText} />
+          <StatCard label="Projetos a pagar" value={payableProjects.length} detail="Com orcamento vinculado" icon={WalletCards} />
+          <StatCard label="Total pago" value={money(paidTotal)} detail="Confirmado" icon={CreditCard} />
+        </section>
+      )}
 
-      <section className="dashboard-grid">
+      {dataReady && (
+        <section className="dashboard-grid">
 
         <article className="panel span-2">
           <div className="panel-heading">
@@ -318,7 +322,8 @@ export default function BillingPage() {
             {payments.length === 0 && <p className="empty">Nenhum pagamento registrado.</p>}
           </div>
         </article>
-      </section>
+        </section>
+      )}
     </AppShell>
   );
 }

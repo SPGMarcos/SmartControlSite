@@ -83,6 +83,7 @@ export default function DashboardPage() {
     () => payments.filter((item) => item.status === "paid").reduce((sum, item) => sum + Number(item.amount || 0), 0),
     [payments]
   );
+  const dataReady = !loading;
 
   const submitRequest = async (event) => {
     event.preventDefault();
@@ -160,12 +161,14 @@ export default function DashboardPage() {
       {success && <p className="notice success">{success}</p>}
       {loading && <p className="notice">Carregando dados...</p>}
 
-      <section className="stats-grid">
-        <StatCard label="Plano atual" value={activeSubscription?.plan_name || "Sem assinatura"} detail={<StatusBadge value={activeSubscription?.status} />} icon={ShieldCheck} />
-        <StatCard label="Projetos" value={projects.length} detail="Sites em acompanhamento" icon={FolderKanban} />
-        <StatCard label="Solicitacoes" value={requests.length} detail="Historico do cliente" icon={MessageSquarePlus} />
-        <StatCard label="Pagamentos" value={money(paidTotal)} detail="Total confirmado" icon={CreditCard} />
-      </section>
+      {dataReady && (
+        <section className="stats-grid">
+          <StatCard label="Plano atual" value={activeSubscription?.plan_name || "Sem assinatura"} detail={<StatusBadge value={activeSubscription?.status} />} icon={ShieldCheck} />
+          <StatCard label="Projetos" value={projects.length} detail="Sites em acompanhamento" icon={FolderKanban} />
+          <StatCard label="Solicitacoes" value={requests.length} detail="Historico do cliente" icon={MessageSquarePlus} />
+          <StatCard label="Pagamentos" value={money(paidTotal)} detail="Total confirmado" icon={CreditCard} />
+        </section>
+      )}
 
       <section className="dashboard-grid">
         <article className="panel span-2">
@@ -216,48 +219,52 @@ export default function DashboardPage() {
           </form>
         </article>
 
-        <article className="panel span-2">
-          <div className="panel-heading">
-            <h2>Projetos</h2>
-          </div>
-          <div className="table-like">
-            {projects.length === 0 && <p className="empty">Nenhum projeto cadastrado ainda.</p>}
-            {projects.map((project) => (
-              <div className="table-row" key={project.id}>
-                <div>
-                  <strong>{project.name}</strong>
-                  <span>
-                    {project.domain || projectTypeLabels[project.site_type] || project.site_type}
-                    {project.plan_name ? ` - ${project.plan_name}` : ""}
-                  </span>
+        {dataReady && (
+          <article className="panel span-2">
+            <div className="panel-heading">
+              <h2>Projetos</h2>
+            </div>
+            <div className="table-like">
+              {projects.length === 0 && <p className="empty">Nenhum projeto cadastrado ainda.</p>}
+              {projects.map((project) => (
+                <div className="table-row" key={project.id}>
+                  <div>
+                    <strong>{project.name}</strong>
+                    <span>
+                      {project.domain || projectTypeLabels[project.site_type] || project.site_type}
+                      {project.plan_name ? ` - ${project.plan_name}` : ""}
+                    </span>
+                  </div>
+                  <StatusBadge value={project.status} />
                 </div>
-                <StatusBadge value={project.status} />
-              </div>
-            ))}
-          </div>
-        </article>
+              ))}
+            </div>
+          </article>
+        )}
 
-        <article className="panel">
-          <div className="panel-heading">
-            <h2>Dados do site</h2>
-          </div>
-          <dl className="info-list">
-            <div>
-              <dt>Empresa</dt>
-              <dd>{client?.company_name || "-"}</dd>
+        {dataReady && (
+          <article className="panel">
+            <div className="panel-heading">
+              <h2>Dados do site</h2>
             </div>
-            <div>
-              <dt>Status</dt>
-              <dd>
-                <StatusBadge value={client?.status} />
-              </dd>
-            </div>
-            <div>
-              <dt>Email</dt>
-              <dd>{user?.email}</dd>
-            </div>
-          </dl>
-        </article>
+            <dl className="info-list">
+              <div>
+                <dt>Empresa</dt>
+                <dd>{client?.company_name || "-"}</dd>
+              </div>
+              <div>
+                <dt>Status</dt>
+                <dd>
+                  <StatusBadge value={client?.status} />
+                </dd>
+              </div>
+              <div>
+                <dt>Email</dt>
+                <dd>{user?.email}</dd>
+              </div>
+            </dl>
+          </article>
+        )}
 
         <article className="panel">
           <div className="panel-heading">
@@ -288,23 +295,25 @@ export default function DashboardPage() {
           </form>
         </article>
 
-        <article className="panel span-2">
-          <div className="panel-heading">
-            <h2>Historico</h2>
-          </div>
-          <div className="table-like">
-            {requests.slice(0, 6).map((item) => (
-              <div className="table-row" key={item.id}>
-                <div>
-                  <strong>{item.title}</strong>
-                  <span>{item.project_name}</span>
+        {dataReady && (
+          <article className="panel span-2">
+            <div className="panel-heading">
+              <h2>Historico</h2>
+            </div>
+            <div className="table-like">
+              {requests.slice(0, 6).map((item) => (
+                <div className="table-row" key={item.id}>
+                  <div>
+                    <strong>{item.title}</strong>
+                    <span>{item.project_name}</span>
+                  </div>
+                  <StatusBadge value={item.status} />
                 </div>
-                <StatusBadge value={item.status} />
-              </div>
-            ))}
-            {requests.length === 0 && <p className="empty">Sem solicitacoes registradas.</p>}
-          </div>
-        </article>
+              ))}
+              {requests.length === 0 && <p className="empty">Sem solicitacoes registradas.</p>}
+            </div>
+          </article>
+        )}
       </section>
     </AppShell>
   );
