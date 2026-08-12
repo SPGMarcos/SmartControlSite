@@ -27,8 +27,8 @@ def get_or_create_billing_client(user):
     client = Client.objects.select_related("user").filter(user=user).first()
     if client:
         return client
-    if user.role != "client":
-        raise ValidationError("Apenas clientes podem iniciar checkout.")
+    if user.role not in {"client", "admin"}:
+        raise ValidationError("Apenas clientes e administradores podem iniciar checkout.")
 
     company_name = " ".join(item for item in [user.first_name, user.last_name] if item).strip() or user.email
     client, _ = Client.objects.select_related("user").get_or_create(
