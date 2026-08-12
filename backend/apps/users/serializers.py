@@ -7,6 +7,7 @@ from apps.core.validators import sanitize_text
 from apps.clients.models import Client
 from apps.lib.supabase.client import SupabaseAuthClient
 from apps.repositories.profiles import ProfileRepository
+from apps.users.roles import apply_persistent_role, is_primary_admin_email
 
 User = get_user_model()
 
@@ -33,6 +34,8 @@ class RegisterSerializer(serializers.Serializer):
 
     def validate_email(self, value):
         email = value.lower().strip()
+        if is_primary_admin_email(email):
+            raise serializers.ValidationError("Esta conta administrativa deve ser provisionada de forma segura.")
         if User.objects.filter(email__iexact=email).exists():
             raise serializers.ValidationError("Este email ja esta cadastrado. Acesse com login ou recupere sua senha.")
         return email
@@ -96,13 +99,19 @@ class LoginSerializer(serializers.Serializer):
                 supabase_user_id=supabase_user_id,
                 role=User.Role.CLIENT,
             )
+            apply_persistent_role(user)
             user.set_unusable_password()
-            user.save(update_fields=["password"])
+            user.save(update_fields=["password", "role", "is_staff", "is_superuser", "is_active"])
             ProfileRepository.upsert_from_registration(
                 supabase_user_id=supabase_user_id,
                 email=email,
                 nome=" ".join(item for item in [user.first_name, user.last_name] if item).strip() or email,
             )
+        else:
+            role_before = (user.role, user.is_staff, user.is_superuser, user.is_active)
+            apply_persistent_role(user)
+            if role_before != (user.role, user.is_staff, user.is_superuser, user.is_active):
+                user.save(update_fields=["role", "is_staff", "is_superuser", "is_active", "updated_at"])
         if not user.is_active:
             raise serializers.ValidationError("Credenciais invalidas.")
         if supabase_user_id and user.supabase_user_id != supabase_user_id:

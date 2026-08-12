@@ -5,6 +5,8 @@ from rest_framework.decorators import api_view, permission_classes, throttle_cla
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
+from .permissions import IsAdmin
+
 
 @ensure_csrf_cookie
 @api_view(["GET"])
@@ -19,3 +21,19 @@ def csrf(request):
 @throttle_classes([])
 def health(request):
     return Response({"status": "ok", "checkout_bundle_enforced": True})
+
+
+@api_view(["GET"])
+@permission_classes([IsAdmin])
+def admin_status(request):
+    return Response(
+        {
+            "status": "ok",
+            "admin": True,
+            "user": {
+                "id": request.user.id,
+                "email": request.user.email,
+                "role": request.user.role,
+            },
+        }
+    )

@@ -6,7 +6,7 @@ from rest_framework.routers import DefaultRouter
 
 from apps.billing.views import CheckoutSessionView, CustomerPortalSessionView, PaymentViewSet, PlanViewSet, StripeWebhookView, SubscriptionViewSet, TransactionLogViewSet
 from apps.clients.views import ClientViewSet
-from apps.core.views import csrf, health
+from apps.core.views import admin_status, csrf, health
 from apps.projects.views import ProjectViewSet, ServiceRequestViewSet
 from apps.users.views import CookieTokenRefreshView, LoginView, LogoutView, MeView, PasswordResetConfirmView, PasswordResetRequestView, RegisterView
 
@@ -22,6 +22,7 @@ router.register("requests", ServiceRequestViewSet, basename="requests")
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/health/", health, name="health"),
+    path("api/admin/status/", admin_status, name="admin_status"),
     path("api/csrf/", csrf, name="csrf"),
     path("api/auth/register/", RegisterView.as_view(), name="register"),
     path("api/auth/login/", LoginView.as_view(), name="login"),

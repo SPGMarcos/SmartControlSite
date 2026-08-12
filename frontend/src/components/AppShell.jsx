@@ -1,12 +1,18 @@
-import { CreditCard, LayoutDashboard, LogOut, Shield, UserRound } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { CreditCard, LayoutDashboard, LogOut, Shield, ShieldCheck, UserRound } from "lucide-react";
+import { NavLink, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../hooks/useAuth.js";
 import Logo from "./Logo.jsx";
 import ThemeToggle from "./ThemeToggle.jsx";
 
 export default function AppShell({ children }) {
-  const { user, isAdmin, logout } = useAuth();
+  const { user, isAdmin, isUserPreviewMode, exitUserPreviewMode, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const returnToAdmin = () => {
+    exitUserPreviewMode();
+    navigate("/admin");
+  };
 
   return (
     <div className="app-shell">
@@ -24,7 +30,7 @@ export default function AppShell({ children }) {
             <CreditCard size={18} />
             Billing
           </NavLink>
-          {isAdmin && (
+          {isAdmin && !isUserPreviewMode && (
             <NavLink to="/admin">
               <Shield size={18} />
               Admin
@@ -43,7 +49,18 @@ export default function AppShell({ children }) {
           Sair
         </button>
       </aside>
-      <main className="app-main">{children}</main>
+      <main className="app-main">
+        {isUserPreviewMode && (
+          <section className="user-preview-banner" role="status" aria-live="polite">
+            <ShieldCheck size={19} />
+            <strong>Modo de visualização do usuário — Você está conectado como administrador.</strong>
+            <button className="secondary-button" type="button" onClick={returnToAdmin}>
+              Voltar para Administração
+            </button>
+          </section>
+        )}
+        {children}
+      </main>
     </div>
   );
 }

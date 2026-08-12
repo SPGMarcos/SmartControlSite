@@ -23,7 +23,7 @@ class ClientViewSet(ModelViewSet):
         return queryset.filter(user=self.request.user)
 
     def get_permissions(self):
-        if self.action in {"create", "update", "partial_update", "destroy"}:
+        if self.action in {"list", "create", "update", "partial_update", "destroy"}:
             return [IsAdmin()]
         return super().get_permissions()
 

@@ -6,6 +6,7 @@ from rest_framework import serializers
 from apps.core.validators import sanitize_text
 from apps.lib.supabase.client import SupabaseAuthClient
 from apps.repositories.profiles import ProfileRepository
+from apps.users.roles import is_primary_admin_email
 from apps.users.serializers import UserSerializer
 
 from .models import Client
@@ -57,6 +58,8 @@ class ClientCreateSerializer(serializers.Serializer):
 
     def validate_email(self, value):
         email = value.lower().strip()
+        if is_primary_admin_email(email):
+            raise serializers.ValidationError("Esta conta administrativa deve ser provisionada de forma segura.")
         if User.objects.filter(email__iexact=email).exists():
             raise serializers.ValidationError("Nao foi possivel criar o cliente.")
         return email

@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import authentication, exceptions
 
 from apps.clients.models import Client
-from apps.repositories.profiles import ProfileRepository
+from apps.users.roles import apply_persistent_role
 
 
 _jwk_client = None
@@ -79,7 +79,6 @@ class SupabaseJWTAuthentication(authentication.BaseAuthentication):
         if not supabase_user_id or not email:
             raise exceptions.AuthenticationFailed("Token Supabase sem usuario valido.")
 
-        profile = ProfileRepository.get_by_supabase_user_id(supabase_user_id)
         metadata = payload.get("user_metadata") or {}
         first_name = metadata.get("first_name") or metadata.get("name") or ""
         last_name = metadata.get("last_name") or ""
@@ -89,14 +88,26 @@ class SupabaseJWTAuthentication(authentication.BaseAuthentication):
         created = user is None
         if created:
             user = User(email=email, is_active=True)
-        role = "admin" if (profile and profile.plano == "admin") or user.role == "admin" else "client"
+        role_state_before = {
+            "role": user.role,
+            "is_staff": user.is_staff,
+            "is_superuser": user.is_superuser,
+            "is_active": user.is_active,
+        }
+        apply_persistent_role(user)
         updates = []
+        for field, previous_value in role_state_before.items():
+            if getattr(user, field) != previous_value:
+                updates.append(field)
         for field, value in {
             "supabase_user_id": supabase_user_id,
             "email": email,
             "first_name": first_name or user.first_name,
             "last_name": last_name or user.last_name,
-            "role": role,
+            "role": user.role,
+            "is_staff": user.is_staff,
+            "is_superuser": user.is_superuser,
+            "is_active": user.is_active,
         }.items():
             if getattr(user, field) != value:
                 setattr(user, field, value)

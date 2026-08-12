@@ -5,6 +5,7 @@ from django.db import transaction
 
 from apps.clients.models import Client
 from apps.users.models import User
+from apps.users.roles import apply_persistent_role, is_primary_admin_email
 
 
 def first_env(*names, default=""):
@@ -48,6 +49,9 @@ class Command(BaseCommand):
 
         if not email or not password:
             return False
+        if is_primary_admin_email(email):
+            self.stdout.write(self.style.WARNING("Skipped client bootstrap for primary admin email."))
+            return False
 
         user, created = User.objects.get_or_create(
             email=email.lower(),
@@ -66,6 +70,7 @@ class Command(BaseCommand):
         user.is_staff = True
         user.is_superuser = True
         user.is_active = True
+        apply_persistent_role(user)
         user.set_password(password)
         user.save()
 
@@ -98,6 +103,7 @@ class Command(BaseCommand):
         user.last_name = last_name or user.last_name
         user.role = User.Role.CLIENT
         user.is_active = True
+        apply_persistent_role(user)
         user.set_password(password)
         user.save()
 

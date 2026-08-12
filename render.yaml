@@ -37,6 +37,9 @@ services:
       - key: SMARTCONTROL_ADMIN_LAST_NAME
         value: SmartControl
 
+      - key: SMARTCONTROL_PRIMARY_ADMIN_EMAILS
+        value: mgfm554@gmail.com
+
       - key: SUPABASE_URL
         sync: false
 

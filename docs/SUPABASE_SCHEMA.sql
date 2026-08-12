@@ -40,7 +40,7 @@ begin
     new.id,
     new.email,
     coalesce(new.raw_user_meta_data->>'name', new.raw_user_meta_data->>'first_name', new.email),
-    coalesce(new.raw_user_meta_data->>'plano', 'client'),
+    'client',
     0
   )
   on conflict (id) do update
@@ -65,11 +65,8 @@ to authenticated
 using (id = auth.uid());
 
 drop policy if exists "profiles_update_own" on public.profiles;
-create policy "profiles_update_own"
-on public.profiles for update
-to authenticated
-using (id = auth.uid())
-with check (id = auth.uid());
+-- Profile writes are performed by the backend/service role.
+-- Do not allow users to update `plano`, because authorization is stored in `users.role`.
 
 -- These ALTER statements match the Django models used by the API.
 -- Run them only if the tables already exist and were created before this migration.

@@ -1,5 +1,9 @@
 import { apiFetch } from "./api.js";
 
+export function getAdminStatus() {
+  return apiFetch("/admin/status/");
+}
+
 export function getClients() {
   return apiFetch("/clients/");
 }
@@ -28,6 +32,14 @@ export function createPlan(payload) {
 
 export function getAdminPayments() {
   return apiFetch("/payments/");
+}
+
+export function getAdminSubscriptions() {
+  return apiFetch("/subscriptions/");
+}
+
+export function getAdminTransactionLogs() {
+  return apiFetch("/transaction-logs/");
 }
 
 export function getAdminRequests() {
