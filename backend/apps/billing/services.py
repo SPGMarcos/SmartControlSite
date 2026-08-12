@@ -311,6 +311,37 @@ class StripeBillingService:
         result["payment"] = payment
         return result
 
+    @staticmethod
+    @transaction.atomic
+    def sync_customer_state(*, client, request=None):
+        if not settings.STRIPE_SECRET_KEY or not client.stripe_customer_id:
+            return {"synced": False, "reason": "missing_stripe_customer"}
+
+        synced_subscriptions = 0
+        synced_invoices = 0
+
+        subscriptions = stripe.Subscription.list(customer=client.stripe_customer_id, status="all", limit=10)
+        for stripe_subscription in subscriptions.auto_paging_iter():
+            result = StripeWebhookService._subscription_changed(stripe_subscription)
+            if result.get("subscription"):
+                synced_subscriptions += 1
+
+        invoices = stripe.Invoice.list(customer=client.stripe_customer_id, limit=10)
+        for invoice in invoices.auto_paging_iter():
+            status_value = Payment.Status.PAID if invoice.get("status") == "paid" or invoice.get("paid") else Payment.Status.PENDING
+            result = StripeWebhookService._invoice_payment(invoice, status_value)
+            if result.get("payment"):
+                synced_invoices += 1
+
+        TransactionLog.objects.create(
+            event_type="customer.billing.synced",
+            status=TransactionLog.Status.PROCESSED,
+            client=client,
+            payload={"stripe_customer_id": client.stripe_customer_id, "subscriptions": synced_subscriptions, "invoices": synced_invoices},
+        )
+        audit(client.user, "billing.customer.sync", request=request, target=client, metadata={"stripe_customer_id": client.stripe_customer_id})
+        return {"synced": True, "subscriptions": synced_subscriptions, "invoices": synced_invoices}
+
 
 class StripeWebhookService:
     @staticmethod
@@ -504,6 +535,9 @@ class StripeWebhookService:
         existing_subscription = Subscription.objects.filter(stripe_subscription_id=stripe_subscription.get("id")).select_related("project").first()
         project = _project_from_metadata(metadata, client) or (existing_subscription.project if existing_subscription else None)
         status = Subscription.Status.CANCELED if stripe_subscription.get("status") == "canceled" else normalize_subscription_status(stripe_subscription.get("status"))
+        first_item = items[0] if items else {}
+        item_period_start = first_item.get("current_period_start")
+        item_period_end = first_item.get("current_period_end")
         subscription, _ = Subscription.objects.update_or_create(
             stripe_subscription_id=stripe_subscription.get("id"),
             defaults={
@@ -514,8 +548,8 @@ class StripeWebhookService:
                 "status": status,
                 "plano": plan.slug or plan.name,
                 "stripe_customer_id": stripe_subscription.get("customer") or client.stripe_customer_id,
-                "current_period_start": _stripe_ts(stripe_subscription.get("current_period_start")),
-                "current_period_end": _stripe_ts(stripe_subscription.get("current_period_end")),
+                "current_period_start": _stripe_ts(stripe_subscription.get("current_period_start") or item_period_start or stripe_subscription.get("start_date")),
+                "current_period_end": _stripe_ts(stripe_subscription.get("current_period_end") or item_period_end),
                 "cancel_at_period_end": bool(stripe_subscription.get("cancel_at_period_end")),
             },
         )

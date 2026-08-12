@@ -74,6 +74,15 @@ class SubscriptionViewSet(ModelViewSet):
             return queryset
         return queryset.filter(client__user=self.request.user)
 
+    def list(self, request, *args, **kwargs):
+        if request.user.role != "admin":
+            client = get_or_create_billing_client(request.user)
+            try:
+                StripeBillingService.sync_customer_state(client=client, request=request)
+            except stripe.error.StripeError as exc:
+                return stripe_error_response(exc)
+        return super().list(request, *args, **kwargs)
+
     def get_permissions(self):
         if self.action in {"create", "update", "partial_update", "destroy"}:
             return [IsAdmin()]
@@ -92,6 +101,15 @@ class PaymentViewSet(ReadOnlyModelViewSet):
         if self.request.user.role == "admin":
             return queryset
         return queryset.filter(client__user=self.request.user)
+
+    def list(self, request, *args, **kwargs):
+        if request.user.role != "admin":
+            client = get_or_create_billing_client(request.user)
+            try:
+                StripeBillingService.sync_customer_state(client=client, request=request)
+            except stripe.error.StripeError as exc:
+                return stripe_error_response(exc)
+        return super().list(request, *args, **kwargs)
 
 
 class TransactionLogViewSet(ReadOnlyModelViewSet):
