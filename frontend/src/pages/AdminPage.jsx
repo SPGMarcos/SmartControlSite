@@ -28,14 +28,7 @@ import StatusBadge from "../components/StatusBadge.jsx";
 import { useAuth } from "../hooks/useAuth.js";
 import {
   createPlan,
-  getAdminPayments,
-  getAdminProjects,
-  getAdminRequests,
-  getAdminStatus,
-  getAdminSubscriptions,
-  getAdminTransactionLogs,
-  getClients,
-  getPlans,
+  getAdminDashboard,
   updateProject
 } from "../services/adminService.js";
 import { API_BASE_URL } from "../services/api.js";
@@ -132,6 +125,21 @@ const projectSorters = {
   name: (item) => item.name || "",
   status: (item) => item.status || "",
 };
+
+const emptyMetrics = Object.freeze({
+  paidSales: 0,
+  paymentsTotal: 0,
+  revenue: "0",
+  clientsTotal: 0,
+  newClients: 0,
+  activeSites: 0,
+  soldSites: 0,
+  projectsInDevelopment: 0,
+  activeSubscriptions: 0,
+  subscriptionsTotal: 0,
+  conversionRate: 0,
+  openSupportRequests: 0,
+});
 
 function AdminToolbar({ query, setQuery, activeTab, setActiveTab, loading, load }) {
   return (
@@ -263,10 +271,11 @@ export default function AdminPage() {
   const [projects, setProjects] = useState([]);
   const [plans, setPlans] = useState([]);
   const [payments, setPayments] = useState([]);
-  const [subscriptions, setSubscriptions] = useState([]);
   const [requests, setRequests] = useState([]);
   const [transactionLogs, setTransactionLogs] = useState([]);
   const [adminStatus, setAdminStatus] = useState(null);
+  const [metrics, setMetrics] = useState(null);
+  const [hasLoadedSnapshot, setHasLoadedSnapshot] = useState(false);
   const [selected, setSelected] = useState(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -295,50 +304,33 @@ export default function AdminPage() {
   const load = async () => {
     setLoading(true);
     setError("");
-    const results = await Promise.allSettled([
-      getAdminStatus(),
-      getClients(),
-      getAdminProjects(),
-      getPlans(),
-      getAdminPayments(),
-      getAdminSubscriptions(),
-      getAdminRequests(),
-      getAdminTransactionLogs(),
-    ]);
-
-    if (results[0].status === "fulfilled") setAdminStatus(results[0].value);
-    if (results[1].status === "fulfilled") setClients(asArray(results[1].value));
-    if (results[2].status === "fulfilled") setProjects(asArray(results[2].value));
-    if (results[3].status === "fulfilled") setPlans(asArray(results[3].value));
-    if (results[4].status === "fulfilled") setPayments(asArray(results[4].value));
-    if (results[5].status === "fulfilled") setSubscriptions(asArray(results[5].value));
-    if (results[6].status === "fulfilled") setRequests(asArray(results[6].value));
-    if (results[7].status === "fulfilled") setTransactionLogs(asArray(results[7].value));
-
-    const rejected = results.find((item) => item.status === "rejected");
-    if (rejected) setError(rejected.reason.message);
-    setLoading(false);
+    try {
+      const snapshot = await getAdminDashboard();
+      setAdminStatus(snapshot.adminStatus);
+      setMetrics({ ...emptyMetrics, ...(snapshot.metrics || {}) });
+      setClients(asArray(snapshot.clients));
+      setProjects(asArray(snapshot.projects));
+      setPlans(asArray(snapshot.plans));
+      setPayments(asArray(snapshot.payments));
+      setRequests(asArray(snapshot.requests));
+      setTransactionLogs(asArray(snapshot.transactionLogs));
+      setHasLoadedSnapshot(true);
+    } catch (item) {
+      setError(item.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     load();
   }, []);
 
-  const paidPayments = useMemo(() => payments.filter((item) => item.status === "paid"), [payments]);
-  const revenue = useMemo(() => paidPayments.reduce((sum, item) => sum + Number(item.amount || 0), 0), [paidPayments]);
-  const activeSubscriptions = useMemo(() => subscriptions.filter((item) => item.status === "active"), [subscriptions]);
-  const activeSites = useMemo(() => projects.filter((item) => item.status === "completed" || item.production_url || item.domain), [projects]);
-  const soldSiteProjectIds = useMemo(() => new Set(paidPayments.map((item) => item.project).filter(Boolean)), [paidPayments]);
-  const soldSites = useMemo(
-    () => projects.filter((item) => soldSiteProjectIds.has(item.id) || item.status === "in_development" || item.status === "review" || item.status === "completed"),
-    [projects, soldSiteProjectIds]
-  );
   const newClients = useMemo(() => {
     const now = Date.now();
     const windowMs = 30 * 24 * 60 * 60 * 1000;
     return clients.filter((client) => client.created_at && now - new Date(client.created_at).getTime() <= windowMs);
   }, [clients]);
-  const conversionRate = clients.length > 0 ? Math.round((new Set(paidPayments.map((item) => item.client)).size / clients.length) * 100) : 0;
 
   const paymentsByClient = useMemo(() => {
     const map = new Map();
@@ -582,16 +574,16 @@ export default function AdminPage() {
   const renderOverview = () => (
     <>
       <section className="stats-grid admin-stats">
-        <StatCard label="Vendas" value={paidPayments.length} detail={`${payments.length} pagamentos registrados`} icon={CreditCard} />
-        <StatCard label="Receita" value={money(revenue)} detail="Pagamentos confirmados" icon={Banknote} />
-        <StatCard label="Clientes" value={clients.length} detail={`${newClients.length} novos em 30 dias`} icon={UsersRound} />
-        <StatCard label="Novos clientes" value={newClients.length} detail="Ultimos 30 dias" icon={UsersRound} />
-        <StatCard label="Sites ativos" value={activeSites.length} detail={`${soldSites.length} vendidos/em execucao`} icon={Store} />
-        <StatCard label="Sites vendidos" value={soldSites.length} detail="Com pagamento ou em producao" icon={Store} />
-        <StatCard label="Em desenvolvimento" value={projects.filter((item) => item.status === "in_development").length} detail="Pipeline atual" icon={BriefcaseBusiness} />
-        <StatCard label="Assinaturas ativas" value={activeSubscriptions.length} detail={`${subscriptions.length} assinaturas no total`} icon={ShieldCheck} />
-        <StatCard label="Conversao" value={`${conversionRate}%`} detail="Clientes com pagamento pago" icon={Gauge} />
-        <StatCard label="Suporte aberto" value={requests.filter((item) => ["open", "in_progress", "waiting_client"].includes(item.status)).length} detail="Solicitacoes pendentes" icon={LifeBuoy} />
+        <StatCard label="Vendas" value={metrics.paidSales} detail={`${metrics.paymentsTotal} pagamentos registrados`} icon={CreditCard} />
+        <StatCard label="Receita" value={money(metrics.revenue)} detail="Pagamentos confirmados" icon={Banknote} />
+        <StatCard label="Clientes" value={metrics.clientsTotal} detail={`${metrics.newClients} novos em 30 dias`} icon={UsersRound} />
+        <StatCard label="Novos clientes" value={metrics.newClients} detail="Ultimos 30 dias" icon={UsersRound} />
+        <StatCard label="Sites ativos" value={metrics.activeSites} detail={`${metrics.soldSites} vendidos/em execucao`} icon={Store} />
+        <StatCard label="Sites vendidos" value={metrics.soldSites} detail="Com pagamento ou em producao" icon={Store} />
+        <StatCard label="Em desenvolvimento" value={metrics.projectsInDevelopment} detail="Pipeline atual" icon={BriefcaseBusiness} />
+        <StatCard label="Assinaturas ativas" value={metrics.activeSubscriptions} detail={`${metrics.subscriptionsTotal} assinaturas no total`} icon={ShieldCheck} />
+        <StatCard label="Conversao" value={`${metrics.conversionRate}%`} detail="Clientes com pagamento pago" icon={Gauge} />
+        <StatCard label="Suporte aberto" value={metrics.openSupportRequests} detail="Solicitacoes pendentes" icon={LifeBuoy} />
       </section>
 
       <section className="admin-overview-grid">
@@ -979,20 +971,22 @@ export default function AdminPage() {
 
       {error && <p className="notice error">{error}</p>}
       {success && <p className="notice success">{success}</p>}
-      {loading && <p className="notice">Carregando dados administrativos...</p>}
+      {loading && <p className="notice">{hasLoadedSnapshot ? "Atualizando dados administrativos..." : "Carregando dados administrativos..."}</p>}
       {action && <p className="notice">Processando: {action}...</p>}
 
-      <div className={`admin-content-shell ${selected ? "has-detail" : ""}`}>
-        <main>
-          {activeTab === "overview" && renderOverview()}
-          {activeTab === "sales" && renderSales()}
-          {activeTab === "clients" && renderClients()}
-          {activeTab === "sites" && renderSites()}
-          {activeTab === "access" && renderAccess()}
-          {activeTab === "support" && renderSupport()}
-        </main>
-        <DetailPanel selected={selected} onClose={() => setSelected(null)} />
-      </div>
+      {!loading && hasLoadedSnapshot && metrics && (
+        <div className={`admin-content-shell ${selected ? "has-detail" : ""}`}>
+          <main>
+            {activeTab === "overview" && renderOverview()}
+            {activeTab === "sales" && renderSales()}
+            {activeTab === "clients" && renderClients()}
+            {activeTab === "sites" && renderSites()}
+            {activeTab === "access" && renderAccess()}
+            {activeTab === "support" && renderSupport()}
+          </main>
+          <DetailPanel selected={selected} onClose={() => setSelected(null)} />
+        </div>
+      )}
     </AppShell>
   );
 }

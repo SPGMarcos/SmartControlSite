@@ -4,6 +4,10 @@ export function getAdminStatus() {
   return apiFetch("/admin/status/");
 }
 
+export function getAdminDashboard() {
+  return apiFetch("/admin/dashboard/");
+}
+
 export function getClients() {
   return apiFetch("/clients/");
 }

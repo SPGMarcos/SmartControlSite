@@ -1,8 +1,8 @@
 from django.test import TestCase
 from rest_framework.exceptions import ValidationError
 
-from apps.billing.models import Payment
-from apps.billing.services import StripeWebhookService
+from apps.billing.models import Payment, Plan, Subscription
+from apps.billing.services import StripeWebhookService, reconcile_client_subscription_access
 from apps.billing.views import get_or_create_billing_client
 from apps.clients.models import Client
 from apps.users.models import User
@@ -50,6 +50,8 @@ class StripeRefundSyncTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(email="cliente@example.com", password="test-pass", role=User.Role.CLIENT)
         self.client = Client.objects.create(user=self.user, company_name="Cliente", stripe_customer_id="cus_test")
+        self.old_plan = Plan.objects.create(name="Old", slug="old", setup_price="799.00", monthly_price="99.00")
+        self.new_plan = Plan.objects.create(name="New", slug="new", setup_price="999.00", monthly_price="199.00")
 
     def test_refund_matches_payment_by_payment_intent(self):
         payment = Payment.objects.create(
@@ -178,3 +180,46 @@ class StripeRefundSyncTests(TestCase):
 
         payment.refresh_from_db()
         self.assertEqual(payment.status, Payment.Status.REFUNDED)
+
+    def test_reconcile_keeps_only_latest_paid_subscription_active(self):
+        old_subscription = Subscription.objects.create(
+            client=self.client,
+            user=self.user,
+            plan=self.old_plan,
+            status=Subscription.Status.ACTIVE,
+            stripe_subscription_id="sub_old",
+        )
+        new_subscription = Subscription.objects.create(
+            client=self.client,
+            user=self.user,
+            plan=self.new_plan,
+            status=Subscription.Status.ACTIVE,
+            stripe_subscription_id="sub_new",
+        )
+        Payment.objects.create(
+            client=self.client,
+            user=self.user,
+            subscription=old_subscription,
+            kind=Payment.Kind.SUBSCRIPTION,
+            status=Payment.Status.REFUNDED,
+            amount="99.00",
+            currency="BRL",
+        )
+        paid_payment = Payment.objects.create(
+            client=self.client,
+            user=self.user,
+            kind=Payment.Kind.SUBSCRIPTION,
+            status=Payment.Status.PAID,
+            amount="199.00",
+            currency="BRL",
+        )
+
+        effective_subscription = reconcile_client_subscription_access(self.client)
+
+        old_subscription.refresh_from_db()
+        new_subscription.refresh_from_db()
+        paid_payment.refresh_from_db()
+        self.assertEqual(effective_subscription, new_subscription)
+        self.assertEqual(paid_payment.subscription, new_subscription)
+        self.assertEqual(old_subscription.status, Subscription.Status.CANCELED)
+        self.assertEqual(new_subscription.status, Subscription.Status.ACTIVE)

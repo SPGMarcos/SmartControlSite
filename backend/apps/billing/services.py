@@ -103,6 +103,101 @@ def _sync_profile_plan(client, plan=None, *, active=True):
         profile.save(update_fields=["plano", "updated_at"])
 
 
+def _plan_id_from_payment(payment):
+    metadata = payment.metadata or {}
+    try:
+        return int(metadata.get("plan_id") or 0)
+    except (TypeError, ValueError):
+        return None
+
+
+def _match_payment_to_active_subscription(payment, active_subscriptions):
+    if payment.subscription_id:
+        for subscription in active_subscriptions:
+            if subscription.id == payment.subscription_id:
+                return subscription
+
+    plan_id = _plan_id_from_payment(payment)
+    if plan_id:
+        matches = [subscription for subscription in active_subscriptions if subscription.plan_id == plan_id]
+        if len(matches) == 1:
+            return matches[0]
+
+    amount_matches = [
+        subscription
+        for subscription in active_subscriptions
+        if subscription.plan and subscription.plan.monthly_price == payment.amount
+    ]
+    if len(amount_matches) == 1:
+        return amount_matches[0]
+
+    return None
+
+
+def effective_subscription_for_client(client):
+    active_subscriptions = list(
+        Subscription.objects.filter(client=client, status=Subscription.Status.ACTIVE)
+        .select_related("plan")
+        .order_by("-current_period_start", "-updated_at", "-created_at", "-id")
+    )
+    if not active_subscriptions:
+        return None
+
+    paid_payments = (
+        Payment.objects.filter(
+            client=client,
+            kind=Payment.Kind.SUBSCRIPTION,
+            status=Payment.Status.PAID,
+        )
+        .select_related("subscription", "subscription__plan")
+        .order_by("-paid_at", "-created_at", "-id")
+    )
+
+    for payment in paid_payments:
+        subscription = _match_payment_to_active_subscription(payment, active_subscriptions)
+        if subscription:
+            if payment.subscription_id != subscription.id:
+                payment.subscription = subscription
+                payment.save(update_fields=["subscription", "updated_at"])
+            return subscription
+
+    if Payment.objects.filter(client=client, kind=Payment.Kind.SUBSCRIPTION).exists():
+        return None
+
+    return active_subscriptions[0]
+
+
+def reconcile_client_subscription_access(client):
+    active_subscriptions = list(
+        Subscription.objects.filter(client=client, status=Subscription.Status.ACTIVE)
+        .select_related("plan")
+        .order_by("-current_period_start", "-updated_at", "-created_at", "-id")
+    )
+    if not active_subscriptions:
+        _sync_profile_plan(client, active=False)
+        return None
+
+    effective_subscription = effective_subscription_for_client(client)
+    if not effective_subscription:
+        active_subscription_ids = [subscription.id for subscription in active_subscriptions]
+        Subscription.objects.filter(id__in=active_subscription_ids).update(
+            status=Subscription.Status.CANCELED,
+            updated_at=django_timezone.now(),
+        )
+        _sync_profile_plan(client, active=False)
+        return None
+
+    stale_ids = [subscription.id for subscription in active_subscriptions if subscription.id != effective_subscription.id]
+    if stale_ids:
+        Subscription.objects.filter(id__in=stale_ids).update(
+            status=Subscription.Status.CANCELED,
+            updated_at=django_timezone.now(),
+        )
+
+    _sync_profile_plan(client, effective_subscription.plan, active=True)
+    return effective_subscription
+
+
 def _payment_amount(plan, kind):
     if kind == Payment.Kind.SUBSCRIPTION:
         return plan.monthly_price
@@ -353,15 +448,19 @@ class StripeBillingService:
                 if result.get("payment"):
                     synced_refunds += 1
 
+        effective_subscription = reconcile_client_subscription_access(client)
+
         TransactionLog.objects.create(
             event_type="customer.billing.synced",
             status=TransactionLog.Status.PROCESSED,
             client=client,
+            subscription=effective_subscription,
             payload={
                 "stripe_customer_id": client.stripe_customer_id,
                 "subscriptions": synced_subscriptions,
                 "invoices": synced_invoices,
                 "refunds": synced_refunds,
+                "effective_subscription": effective_subscription.id if effective_subscription else None,
             },
         )
         audit(client.user, "billing.customer.sync", request=request, target=client, metadata={"stripe_customer_id": client.stripe_customer_id})
@@ -514,23 +613,25 @@ class StripeWebhookService:
     def _invoice_payment(invoice, status):
         subscription = None
         stripe_subscription_id = _subscription_id_from_invoice(invoice)
+        existing_payment = Payment.objects.filter(stripe_invoice_id=invoice.get("id")).first()
+        payment_status = status
+        if existing_payment and existing_payment.status == Payment.Status.REFUNDED and status == Payment.Status.PAID:
+            payment_status = Payment.Status.REFUNDED
+
         if stripe_subscription_id:
             subscription = Subscription.objects.filter(stripe_subscription_id=stripe_subscription_id).select_related("client", "project").first()
             if subscription:
-                subscription.status = Subscription.Status.ACTIVE if status == Payment.Status.PAID else Subscription.Status.PAST_DUE
+                if payment_status == Payment.Status.PAID:
+                    subscription.status = Subscription.Status.ACTIVE
+                elif payment_status != Payment.Status.REFUNDED:
+                    subscription.status = Subscription.Status.PAST_DUE
                 subscription.save(update_fields=["status", "updated_at"])
-                if status == Payment.Status.PAID:
-                    _sync_profile_plan(subscription.client, subscription.plan, active=True)
 
         client = subscription.client if subscription else Client.objects.filter(stripe_customer_id=invoice.get("customer")).first()
         if not client:
             return {"ignored": "unknown_client"}
 
         project = subscription.project if subscription else None
-        existing_payment = Payment.objects.filter(stripe_invoice_id=invoice.get("id")).first()
-        payment_status = status
-        if existing_payment and existing_payment.status == Payment.Status.REFUNDED and status == Payment.Status.PAID:
-            payment_status = Payment.Status.REFUNDED
         payment, _ = Payment.objects.update_or_create(
             stripe_invoice_id=invoice.get("id"),
             defaults={
@@ -545,6 +646,7 @@ class StripeWebhookService:
                 "paid_at": _stripe_ts(invoice.get("status_transitions", {}).get("paid_at")) if payment_status == Payment.Status.PAID else None,
             },
         )
+        reconcile_client_subscription_access(client)
         _touch_project_status(project, Project.Status.IN_DEVELOPMENT if payment_status == Payment.Status.PAID else Project.Status.PAYMENT_PENDING)
         return {"processed": "invoice", "client": client, "subscription": subscription, "project": project, "payment": payment, "amount": payment.amount, "currency": payment.currency}
 
@@ -582,10 +684,7 @@ class StripeWebhookService:
                 "cancel_at_period_end": bool(stripe_subscription.get("cancel_at_period_end")),
             },
         )
-        if status == Subscription.Status.ACTIVE:
-            _sync_profile_plan(client, plan, active=True)
-        elif status == Subscription.Status.CANCELED and not Subscription.objects.filter(client=client, status=Subscription.Status.ACTIVE).exclude(pk=subscription.pk).exists():
-            _sync_profile_plan(client, active=False)
+        reconcile_client_subscription_access(client)
         return {"processed": "subscription", "client": client, "project": project, "subscription": subscription}
 
     @staticmethod
@@ -613,6 +712,7 @@ class StripeWebhookService:
         if not payment:
             return {"ignored": "unknown_payment"}
         if payment.status == Payment.Status.REFUNDED:
+            reconcile_client_subscription_access(payment.client)
             return {"processed": "refund", "client": payment.client, "project": payment.project, "payment": payment, "amount": payment.amount, "currency": payment.currency}
 
         payment.status = Payment.Status.REFUNDED
@@ -624,6 +724,7 @@ class StripeWebhookService:
         }
         payment.metadata = metadata
         payment.save(update_fields=["status", "metadata", "updated_at"])
+        reconcile_client_subscription_access(payment.client)
         _touch_project_status(payment.project, Project.Status.PAYMENT_PENDING)
         return {"processed": "refund", "client": payment.client, "project": payment.project, "payment": payment, "amount": payment.amount, "currency": payment.currency}
 
