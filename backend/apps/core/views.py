@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from apps.billing.models import Payment, Plan, Subscription, TransactionLog
 from apps.billing.serializers import PaymentSerializer, PlanSerializer, SubscriptionSerializer, TransactionLogSerializer
 from apps.billing.services import effective_subscription_for_client
-from apps.billing.views import _wants_forced_sync, stripe_error_response, sync_billing_for_request_user
+from apps.billing.views import BILLING_SYNC_CACHE_SECONDS, _wants_forced_sync, stripe_error_response, sync_billing_for_request_user
 from apps.clients.models import Client
 from apps.clients.serializers import ClientSerializer
 from apps.projects.models import Project, ServiceRequest
@@ -35,7 +35,13 @@ def csrf(request):
 @permission_classes([AllowAny])
 @throttle_classes([])
 def health(request):
-    return Response({"status": "ok", "checkout_bundle_enforced": True})
+    return Response(
+        {
+            "status": "ok",
+            "checkout_bundle_enforced": True,
+            "billing_sync_cache_seconds": BILLING_SYNC_CACHE_SECONDS,
+        }
+    )
 
 
 @api_view(["GET"])
