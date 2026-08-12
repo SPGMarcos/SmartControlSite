@@ -34,6 +34,18 @@ def _currency(value):
     return (value or "brl").upper()
 
 
+def _stripe_object_id(value):
+    if hasattr(value, "get"):
+        return value.get("id")
+    return value
+
+
+def _subscription_id_from_invoice(invoice):
+    parent = invoice.get("parent") or {}
+    subscription_details = parent.get("subscription_details") or {}
+    return invoice.get("subscription") or subscription_details.get("subscription")
+
+
 def normalize_subscription_status(status):
     allowed = {choice[0] for choice in Subscription.Status.choices}
     return status if status in allowed else Subscription.Status.PENDING
@@ -319,6 +331,7 @@ class StripeBillingService:
 
         synced_subscriptions = 0
         synced_invoices = 0
+        synced_refunds = 0
 
         subscriptions = stripe.Subscription.list(customer=client.stripe_customer_id, status="all", limit=10)
         for stripe_subscription in subscriptions.auto_paging_iter():
@@ -333,14 +346,26 @@ class StripeBillingService:
             if result.get("payment"):
                 synced_invoices += 1
 
+        charges = stripe.Charge.list(customer=client.stripe_customer_id, limit=10)
+        for charge in charges.auto_paging_iter():
+            if charge.get("refunded") or int(charge.get("amount_refunded") or 0) > 0:
+                result = StripeWebhookService._charge_refunded(charge)
+                if result.get("payment"):
+                    synced_refunds += 1
+
         TransactionLog.objects.create(
             event_type="customer.billing.synced",
             status=TransactionLog.Status.PROCESSED,
             client=client,
-            payload={"stripe_customer_id": client.stripe_customer_id, "subscriptions": synced_subscriptions, "invoices": synced_invoices},
+            payload={
+                "stripe_customer_id": client.stripe_customer_id,
+                "subscriptions": synced_subscriptions,
+                "invoices": synced_invoices,
+                "refunds": synced_refunds,
+            },
         )
         audit(client.user, "billing.customer.sync", request=request, target=client, metadata={"stripe_customer_id": client.stripe_customer_id})
-        return {"synced": True, "subscriptions": synced_subscriptions, "invoices": synced_invoices}
+        return {"synced": True, "subscriptions": synced_subscriptions, "invoices": synced_invoices, "refunds": synced_refunds}
 
 
 class StripeWebhookService:
@@ -488,7 +513,7 @@ class StripeWebhookService:
     @staticmethod
     def _invoice_payment(invoice, status):
         subscription = None
-        stripe_subscription_id = invoice.get("subscription")
+        stripe_subscription_id = _subscription_id_from_invoice(invoice)
         if stripe_subscription_id:
             subscription = Subscription.objects.filter(stripe_subscription_id=stripe_subscription_id).select_related("client", "project").first()
             if subscription:
@@ -502,6 +527,10 @@ class StripeWebhookService:
             return {"ignored": "unknown_client"}
 
         project = subscription.project if subscription else None
+        existing_payment = Payment.objects.filter(stripe_invoice_id=invoice.get("id")).first()
+        payment_status = status
+        if existing_payment and existing_payment.status == Payment.Status.REFUNDED and status == Payment.Status.PAID:
+            payment_status = Payment.Status.REFUNDED
         payment, _ = Payment.objects.update_or_create(
             stripe_invoice_id=invoice.get("id"),
             defaults={
@@ -510,13 +539,13 @@ class StripeWebhookService:
                 "subscription": subscription,
                 "project": project,
                 "kind": Payment.Kind.SUBSCRIPTION,
-                "status": status,
+                "status": payment_status,
                 "amount": _decimal_from_cents(invoice.get("amount_paid") or invoice.get("amount_due")),
                 "currency": _currency(invoice.get("currency")),
-                "paid_at": _stripe_ts(invoice.get("status_transitions", {}).get("paid_at")) if status == Payment.Status.PAID else None,
+                "paid_at": _stripe_ts(invoice.get("status_transitions", {}).get("paid_at")) if payment_status == Payment.Status.PAID else None,
             },
         )
-        _touch_project_status(project, Project.Status.IN_DEVELOPMENT if status == Payment.Status.PAID else Project.Status.PAYMENT_PENDING)
+        _touch_project_status(project, Project.Status.IN_DEVELOPMENT if payment_status == Payment.Status.PAID else Project.Status.PAYMENT_PENDING)
         return {"processed": "invoice", "client": client, "subscription": subscription, "project": project, "payment": payment, "amount": payment.amount, "currency": payment.currency}
 
     @staticmethod
@@ -561,13 +590,42 @@ class StripeWebhookService:
 
     @staticmethod
     def _charge_refunded(charge):
-        payment = Payment.objects.filter(stripe_payment_intent_id=charge.get("payment_intent")).first()
+        refunded_amount = _decimal_from_cents(charge.get("amount_refunded") or charge.get("amount"))
+        invoice_id = _stripe_object_id(charge.get("invoice"))
+        customer_id = _stripe_object_id(charge.get("customer"))
+        payment_intent_id = _stripe_object_id(charge.get("payment_intent"))
+
+        payment = None
+        if payment_intent_id:
+            payment = Payment.objects.filter(stripe_payment_intent_id=payment_intent_id).first()
+        if not payment and invoice_id:
+            payment = Payment.objects.filter(stripe_invoice_id=invoice_id).first()
+        if not payment and customer_id and refunded_amount:
+            candidates = Payment.objects.filter(
+                client__stripe_customer_id=customer_id,
+                status=Payment.Status.PAID,
+                amount=refunded_amount,
+            ).order_by("-paid_at", "-created_at")
+            if candidates.count() == 1:
+                payment = candidates.first()
+            elif candidates.count() > 1:
+                return {"ignored": "ambiguous_refunded_payment", "amount": refunded_amount, "currency": _currency(charge.get("currency"))}
         if not payment:
             return {"ignored": "unknown_payment"}
+        if payment.status == Payment.Status.REFUNDED:
+            return {"processed": "refund", "client": payment.client, "project": payment.project, "payment": payment, "amount": payment.amount, "currency": payment.currency}
+
         payment.status = Payment.Status.REFUNDED
-        payment.save(update_fields=["status", "updated_at"])
+        metadata = dict(payment.metadata or {})
+        metadata["stripe_refund"] = {
+            "charge_id": charge.get("id"),
+            "amount_refunded": str(refunded_amount),
+            "currency": _currency(charge.get("currency")),
+        }
+        payment.metadata = metadata
+        payment.save(update_fields=["status", "metadata", "updated_at"])
         _touch_project_status(payment.project, Project.Status.PAYMENT_PENDING)
-        return {"processed": "refund", "client": payment.client, "project": payment.project, "payment": payment}
+        return {"processed": "refund", "client": payment.client, "project": payment.project, "payment": payment, "amount": payment.amount, "currency": payment.currency}
 
     @staticmethod
     def _upsert_payment_from_checkout(session, client, plan, project, status):

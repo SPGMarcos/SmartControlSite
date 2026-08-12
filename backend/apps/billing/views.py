@@ -46,6 +46,16 @@ def stripe_error_response(exc):
     )
 
 
+def sync_billing_for_request_user(request):
+    if request.user.role == "admin":
+        clients = Client.objects.exclude(stripe_customer_id__isnull=True).exclude(stripe_customer_id="")[:50]
+    else:
+        clients = [get_or_create_billing_client(request.user)]
+
+    for client in clients:
+        StripeBillingService.sync_customer_state(client=client, request=request)
+
+
 class PlanViewSet(ModelViewSet):
     serializer_class = PlanSerializer
     permission_classes = [IsAdminOrReadOnly]
@@ -75,12 +85,10 @@ class SubscriptionViewSet(ModelViewSet):
         return queryset.filter(client__user=self.request.user)
 
     def list(self, request, *args, **kwargs):
-        if request.user.role != "admin":
-            client = get_or_create_billing_client(request.user)
-            try:
-                StripeBillingService.sync_customer_state(client=client, request=request)
-            except stripe.error.StripeError as exc:
-                return stripe_error_response(exc)
+        try:
+            sync_billing_for_request_user(request)
+        except stripe.error.StripeError as exc:
+            return stripe_error_response(exc)
         return super().list(request, *args, **kwargs)
 
     def get_permissions(self):
@@ -103,12 +111,10 @@ class PaymentViewSet(ReadOnlyModelViewSet):
         return queryset.filter(client__user=self.request.user)
 
     def list(self, request, *args, **kwargs):
-        if request.user.role != "admin":
-            client = get_or_create_billing_client(request.user)
-            try:
-                StripeBillingService.sync_customer_state(client=client, request=request)
-            except stripe.error.StripeError as exc:
-                return stripe_error_response(exc)
+        try:
+            sync_billing_for_request_user(request)
+        except stripe.error.StripeError as exc:
+            return stripe_error_response(exc)
         return super().list(request, *args, **kwargs)
 
 
