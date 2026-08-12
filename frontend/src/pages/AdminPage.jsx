@@ -156,7 +156,7 @@ function AdminToolbar({ query, setQuery, activeTab, setActiveTab, loading, load 
         <Search size={18} />
         <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar em vendas, clientes, sites e suporte" />
       </div>
-      <button className="secondary-button" type="button" onClick={load} disabled={loading}>
+      <button className="secondary-button" type="button" onClick={() => load({ forceSync: true })} disabled={loading}>
         <RefreshCcw size={17} />
         {loading ? "Atualizando" : "Atualizar"}
       </button>
@@ -301,11 +301,11 @@ export default function AdminPage() {
     stripe_monthly_price_id: ""
   });
 
-  const load = async () => {
+  const load = async ({ forceSync = false } = {}) => {
     setLoading(true);
     setError("");
     try {
-      const snapshot = await getAdminDashboard();
+      const snapshot = await getAdminDashboard({ forceSync });
       setAdminStatus(snapshot.adminStatus);
       setMetrics({ ...emptyMetrics, ...(snapshot.metrics || {}) });
       setClients(asArray(snapshot.clients));
@@ -974,7 +974,7 @@ export default function AdminPage() {
       {loading && <p className="notice">{hasLoadedSnapshot ? "Atualizando dados administrativos..." : "Carregando dados administrativos..."}</p>}
       {action && <p className="notice">Processando: {action}...</p>}
 
-      {!loading && hasLoadedSnapshot && metrics && (
+      {hasLoadedSnapshot && metrics && (
         <div className={`admin-content-shell ${selected ? "has-detail" : ""}`}>
           <main>
             {activeTab === "overview" && renderOverview()}

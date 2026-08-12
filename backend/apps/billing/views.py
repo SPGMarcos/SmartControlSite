@@ -1,5 +1,8 @@
+from datetime import timedelta
+
 from django.conf import settings
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 import logging
@@ -21,6 +24,7 @@ from .services import StripeBillingService, StripeWebhookService
 
 
 logger = logging.getLogger(__name__)
+BILLING_SYNC_CACHE_SECONDS = 120
 
 
 def get_or_create_billing_client(user):
@@ -46,14 +50,37 @@ def stripe_error_response(exc):
     )
 
 
-def sync_billing_for_request_user(request):
+def _wants_forced_sync(request):
+    return str(request.query_params.get("sync", "")).lower() in {"1", "true", "force"}
+
+
+def _client_needs_billing_sync(client, *, force=False, min_interval_seconds=BILLING_SYNC_CACHE_SECONDS):
+    if force:
+        return True
+
+    threshold = timezone.now() - timedelta(seconds=min_interval_seconds)
+    return not TransactionLog.objects.filter(
+        client=client,
+        event_type="customer.billing.synced",
+        status=TransactionLog.Status.PROCESSED,
+        created_at__gte=threshold,
+    ).exists()
+
+
+def sync_billing_for_request_user(request, *, force=False, min_interval_seconds=BILLING_SYNC_CACHE_SECONDS):
     if request.user.role == "admin":
         clients = Client.objects.exclude(stripe_customer_id__isnull=True).exclude(stripe_customer_id="")[:50]
     else:
         clients = [get_or_create_billing_client(request.user)]
 
+    sync_results = {"synced": 0, "skipped": 0}
     for client in clients:
+        if not _client_needs_billing_sync(client, force=force, min_interval_seconds=min_interval_seconds):
+            sync_results["skipped"] += 1
+            continue
         StripeBillingService.sync_customer_state(client=client, request=request)
+        sync_results["synced"] += 1
+    return sync_results
 
 
 class PlanViewSet(ModelViewSet):
@@ -86,7 +113,7 @@ class SubscriptionViewSet(ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         try:
-            sync_billing_for_request_user(request)
+            sync_billing_for_request_user(request, force=_wants_forced_sync(request))
         except stripe.error.StripeError as exc:
             return stripe_error_response(exc)
         return super().list(request, *args, **kwargs)
@@ -112,7 +139,7 @@ class PaymentViewSet(ReadOnlyModelViewSet):
 
     def list(self, request, *args, **kwargs):
         try:
-            sync_billing_for_request_user(request)
+            sync_billing_for_request_user(request, force=_wants_forced_sync(request))
         except stripe.error.StripeError as exc:
             return stripe_error_response(exc)
         return super().list(request, *args, **kwargs)

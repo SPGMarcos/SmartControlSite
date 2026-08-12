@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from apps.billing.models import Payment, Plan, Subscription, TransactionLog
 from apps.billing.serializers import PaymentSerializer, PlanSerializer, SubscriptionSerializer, TransactionLogSerializer
 from apps.billing.services import effective_subscription_for_client
-from apps.billing.views import stripe_error_response, sync_billing_for_request_user
+from apps.billing.views import _wants_forced_sync, stripe_error_response, sync_billing_for_request_user
 from apps.clients.models import Client
 from apps.clients.serializers import ClientSerializer
 from apps.projects.models import Project, ServiceRequest
@@ -111,7 +111,7 @@ def _admin_metrics(*, clients, projects, payments, subscriptions, requests):
 @permission_classes([IsAdmin])
 def admin_dashboard(request):
     try:
-        sync_billing_for_request_user(request)
+        sync_result = sync_billing_for_request_user(request, force=_wants_forced_sync(request))
     except stripe.error.StripeError as exc:
         return stripe_error_response(exc)
 
@@ -127,6 +127,7 @@ def admin_dashboard(request):
         {
             "status": "ok",
             "syncedAt": timezone.now().isoformat(),
+            "sync": sync_result,
             "adminStatus": {
                 "status": "ok",
                 "admin": True,

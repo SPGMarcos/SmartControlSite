@@ -4,8 +4,8 @@ export function getAdminStatus() {
   return apiFetch("/admin/status/");
 }
 
-export function getAdminDashboard() {
-  return apiFetch("/admin/dashboard/");
+export function getAdminDashboard({ forceSync = false } = {}) {
+  return apiFetch(`/admin/dashboard/${forceSync ? "?sync=1" : ""}`);
 }
 
 export function getClients() {
