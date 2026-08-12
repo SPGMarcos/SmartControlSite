@@ -57,6 +57,10 @@ export function createCheckoutSession(payload) {
   });
 }
 
+export function syncCheckoutSession(sessionId) {
+  return apiFetch(`/billing/checkout-session/?session_id=${encodeURIComponent(sessionId)}`);
+}
+
 export function createCustomerPortalSession() {
   return apiFetch("/billing/customer-portal/", {
     method: "POST"

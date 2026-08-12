@@ -139,6 +139,30 @@ class CheckoutSessionView(APIView):
             return stripe_error_response(exc)
         return Response({"checkoutUrl": session["url"], "sessionId": session["id"]})
 
+    def get(self, request):
+        session_id = request.query_params.get("session_id", "").strip()
+        if not session_id:
+            raise ValidationError("Informe a sessao de checkout.")
+
+        client = get_or_create_billing_client(request.user)
+        try:
+            result = StripeBillingService.sync_checkout_session(client=client, session_id=session_id, request=request)
+        except stripe.error.StripeError as exc:
+            return stripe_error_response(exc)
+
+        return Response(
+            {
+                "sessionId": result["session_id"],
+                "status": result["status"],
+                "paymentStatus": result["payment_status"],
+                "mode": result["mode"],
+                "amountTotal": result["amount_total"],
+                "currency": result["currency"],
+                "subscription": SubscriptionSerializer(result["subscription"]).data if result["subscription"] else None,
+                "payment": PaymentSerializer(result["payment"]).data if result["payment"] else None,
+            }
+        )
+
 
 class CustomerPortalSessionView(APIView):
     permission_classes = [IsAuthenticated]

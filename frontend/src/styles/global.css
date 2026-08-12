@@ -918,6 +918,62 @@ button {
   min-height: 380px;
 }
 
+.billing-summary {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.5fr) repeat(3, minmax(180px, 1fr));
+  gap: 14px;
+  margin: 0 0 24px;
+}
+
+.billing-summary-main,
+.summary-metric {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.billing-summary-main {
+  display: grid;
+  align-content: center;
+  gap: 10px;
+  border-color: color-mix(in srgb, var(--green) 28%, var(--line));
+  background: color-mix(in srgb, var(--green) 8%, var(--surface));
+}
+
+.billing-summary-main h2 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.summary-status-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--muted-ink);
+  font-weight: 700;
+}
+
+.summary-metric {
+  display: grid;
+  gap: 8px;
+}
+
+.summary-metric svg {
+  color: var(--blue);
+}
+
+.summary-metric span {
+  color: var(--muted-ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.summary-metric strong {
+  font-size: 22px;
+}
+
 .stat-card {
   display: flex;
   align-items: flex-start;
@@ -1263,6 +1319,7 @@ button {
   .service-grid,
   .plans-grid,
   .stats-grid,
+  .billing-summary,
   .dashboard-grid,
   .timeline {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1318,6 +1375,7 @@ button {
   .service-grid,
   .plans-grid,
   .stats-grid,
+  .billing-summary,
   .dashboard-grid,
   .timeline,
   .form.two-columns {

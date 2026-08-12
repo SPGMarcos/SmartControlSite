@@ -254,6 +254,63 @@ class StripeBillingService:
         audit(client.user, "billing.portal_session.create", request=request, target=client, metadata={"session_id": session["id"]})
         return session
 
+    @staticmethod
+    @transaction.atomic
+    def sync_checkout_session(*, client, session_id, request=None):
+        if not settings.STRIPE_SECRET_KEY:
+            raise ValidationError("Stripe nao configurado.")
+
+        session = stripe.checkout.Session.retrieve(session_id, expand=["line_items", "invoice"])
+        metadata = dict(session.get("metadata") or {})
+        session_client_id = metadata.get("client_id") or session.get("client_reference_id")
+        if str(client.id) != str(session_client_id):
+            raise ValidationError("Sessao de checkout nao pertence a este cliente.")
+
+        result = {
+            "session_id": session["id"],
+            "status": session.get("status"),
+            "payment_status": session.get("payment_status"),
+            "mode": session.get("mode"),
+            "amount_total": _decimal_from_cents(session.get("amount_total")),
+            "currency": _currency(session.get("currency")),
+            "subscription": None,
+            "payment": None,
+        }
+
+        if session.get("status") != "complete":
+            return result
+
+        checkout_result = StripeWebhookService._checkout_completed(session)
+        subscription = checkout_result.get("subscription")
+        payment = checkout_result.get("payment")
+
+        if session.get("mode") == "subscription" and session.get("subscription"):
+            stripe_subscription = stripe.Subscription.retrieve(session["subscription"])
+            subscription_result = StripeWebhookService._subscription_changed(stripe_subscription)
+            subscription = subscription_result.get("subscription") or subscription
+
+            invoice = session.get("invoice")
+            if invoice:
+                invoice_data = invoice if hasattr(invoice, "get") and invoice.get("object") == "invoice" else stripe.Invoice.retrieve(invoice)
+                invoice_result = StripeWebhookService._invoice_payment(invoice_data, Payment.Status.PAID)
+                payment = invoice_result.get("payment") or payment
+
+        TransactionLog.objects.create(
+            event_type="checkout.session.synced",
+            status=TransactionLog.Status.PROCESSED,
+            client=client,
+            subscription=subscription,
+            payment=payment,
+            amount=result["amount_total"],
+            currency=result["currency"],
+            payload={"session_id": session["id"], "status": result["status"], "payment_status": result["payment_status"]},
+        )
+        audit(client.user, "billing.checkout_session.sync", request=request, target=client, metadata={"session_id": session["id"]})
+
+        result["subscription"] = subscription
+        result["payment"] = payment
+        return result
+
 
 class StripeWebhookService:
     @staticmethod

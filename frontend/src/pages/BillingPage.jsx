@@ -1,4 +1,4 @@
-import { CreditCard, ExternalLink, ReceiptText, Repeat, WalletCards } from "lucide-react";
+import { CalendarClock, CreditCard, ExternalLink, ReceiptText, Repeat, WalletCards } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
@@ -6,7 +6,7 @@ import AppShell from "../components/AppShell.jsx";
 import PlanCatalog from "../components/PlanCatalog.jsx";
 import StatCard from "../components/StatCard.jsx";
 import StatusBadge from "../components/StatusBadge.jsx";
-import { createCheckoutSession, createCustomerPortalSession, getPayments, getPlans, getProjects, getSubscriptions } from "../services/dashboardService.js";
+import { createCheckoutSession, createCustomerPortalSession, getPayments, getPlans, getProjects, getSubscriptions, syncCheckoutSession } from "../services/dashboardService.js";
 import { asArray, money, normalizePlans } from "../utils/plans.js";
 
 function date(value) {
@@ -15,21 +15,28 @@ function date(value) {
 }
 
 const payableStatuses = new Set(["quote_sent", "payment_pending", "awaiting_analysis"]);
+const paymentKindLabels = {
+  one_time: "Projeto unico",
+  subscription: "Assinatura",
+  installment: "Parcelamento",
+};
 
 function canPayProject(project) {
   return Boolean(project.plan_id && payableStatuses.has(project.status));
 }
 
 export default function BillingPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [projects, setProjects] = useState([]);
   const [plans, setPlans] = useState([]);
   const [payments, setPayments] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
+  const [checkoutResult, setCheckoutResult] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [action, setAction] = useState("");
   const checkoutStartedRef = useRef(false);
+  const checkoutSyncedRef = useRef(false);
 
   const load = async () => {
     setLoading(true);
@@ -47,9 +54,38 @@ export default function BillingPage() {
     load();
   }, []);
 
+  useEffect(() => {
+    const checkoutStatus = searchParams.get("checkout");
+    const sessionId = searchParams.get("session_id");
+    if (checkoutStatus !== "success" || !sessionId || checkoutSyncedRef.current) return;
+
+    checkoutSyncedRef.current = true;
+    setAction("Atualizando dados da compra");
+    syncCheckoutSession(sessionId)
+      .then(async (result) => {
+        setCheckoutResult(result);
+        await load();
+        setSearchParams((current) => {
+          const next = new URLSearchParams(current);
+          next.delete("session_id");
+          return next;
+        }, { replace: true });
+      })
+      .catch((item) => setError(item.message))
+      .finally(() => setAction(""));
+  }, [searchParams, setSearchParams]);
+
   const activeSubscription = useMemo(
     () => subscriptions.find((item) => item.status === "active") || subscriptions[0],
     [subscriptions]
+  );
+  const activePlan = useMemo(
+    () => plans.find((plan) => Number(plan.id) === Number(activeSubscription?.plan)),
+    [activeSubscription, plans]
+  );
+  const lastPayment = useMemo(
+    () => payments.find((item) => item.status === "paid") || payments[0],
+    [payments]
   );
   const pendingPayments = useMemo(() => payments.filter((item) => item.status === "pending"), [payments]);
   const paidTotal = useMemo(
@@ -161,6 +197,34 @@ export default function BillingPage() {
       {error && <p className="notice error">{error}</p>}
       {loading && <p className="notice">Carregando billing...</p>}
 
+      {(activeSubscription || checkoutResult) && (
+        <section className="billing-summary">
+          <article className="billing-summary-main">
+            <span className="eyebrow">Resumo atual</span>
+            <h2>{activeSubscription?.plan_name || "Compra registrada"}</h2>
+            <div className="summary-status-row">
+              <StatusBadge value={activeSubscription?.status || (checkoutResult?.paymentStatus === "paid" ? "paid" : checkoutResult?.paymentStatus)} />
+              <span>{activeSubscription?.current_period_end ? `Renova em ${date(activeSubscription.current_period_end)}` : "Aguardando atualizacao da Stripe"}</span>
+            </div>
+          </article>
+          <article className="summary-metric">
+            <CreditCard size={18} />
+            <span>Cobrado hoje</span>
+            <strong>{money(checkoutResult?.amountTotal ?? lastPayment?.amount ?? 0, checkoutResult?.currency || lastPayment?.currency || "BRL")}</strong>
+          </article>
+          <article className="summary-metric">
+            <Repeat size={18} />
+            <span>Assinatura mensal</span>
+            <strong>{activePlan?.monthlyPrice > 0 ? activePlan.monthlyLabel : "Sem recorrencia"}</strong>
+          </article>
+          <article className="summary-metric">
+            <CalendarClock size={18} />
+            <span>Proxima renovacao</span>
+            <strong>{activeSubscription?.current_period_end ? date(activeSubscription.current_period_end) : "-"}</strong>
+          </article>
+        </section>
+      )}
+
       <section className="billing-plan-showcase">
         <div className="section-heading">
           <span>Planos</span>
@@ -226,7 +290,7 @@ export default function BillingPage() {
             <div className="compact-item">
               <div>
                 <strong>{activeSubscription?.plan_name || "Sem plano ativo"}</strong>
-                <span>{activeSubscription?.current_period_end ? `Renova em ${date(activeSubscription.current_period_end)}` : "Portal Stripe"}</span>
+                <span>{activePlan?.monthlyPrice > 0 ? `${activePlan.monthlyLabel} - ${activeSubscription?.current_period_end ? `renova em ${date(activeSubscription.current_period_end)}` : "recorrencia mensal"}` : "Portal Stripe"}</span>
               </div>
               <StatusBadge value={activeSubscription?.status} />
             </div>
@@ -246,7 +310,7 @@ export default function BillingPage() {
               <div className="table-row" key={payment.id}>
                 <div>
                   <strong>{money(payment.amount, payment.currency)}</strong>
-                  <span>{payment.project_name || payment.kind}</span>
+                  <span>{payment.project_name || paymentKindLabels[payment.kind] || payment.kind}</span>
                 </div>
                 <StatusBadge value={payment.status} />
               </div>
