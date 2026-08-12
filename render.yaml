@@ -119,7 +119,7 @@ services:
         value: https://smartcontrol-sites-api.onrender.com/api
 
       - key: VITE_BASE_PATH
-        value: /SmartControlSite/
+        value: /
 
       - key: VITE_SUPABASE_URL
         sync: false
